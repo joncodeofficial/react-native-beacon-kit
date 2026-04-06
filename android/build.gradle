@@ -64,4 +64,5 @@ android {
 
 dependencies {
   implementation "com.facebook.react:react-android"
+  implementation "org.altbeacon:android-beacon-library:2.21.2"
 }
