@@ -15,9 +15,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "13B07F861A680F5B00A75B9A"
-               BuildableName = "BleIndoorBeaconExample.app"
-               BlueprintName = "BleIndoorBeaconExample"
-               ReferencedContainer = "container:BleIndoorBeaconExample.xcodeproj">
+               BuildableName = "IndoorBeaconExample.app"
+               BlueprintName = "IndoorBeaconExample"
+               ReferencedContainer = "container:IndoorBeaconExample.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
       </BuildActionEntries>
@@ -33,9 +33,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "00E356ED1AD99517003FC87E"
-               BuildableName = "BleIndoorBeaconExampleTests.xctest"
-               BlueprintName = "BleIndoorBeaconExampleTests"
-               ReferencedContainer = "container:BleIndoorBeaconExample.xcodeproj">
+               BuildableName = "IndoorBeaconExampleTests.xctest"
+               BlueprintName = "IndoorBeaconExampleTests"
+               ReferencedContainer = "container:IndoorBeaconExample.xcodeproj">
             </BuildableReference>
          </TestableReference>
       </Testables>
@@ -55,9 +55,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "13B07F861A680F5B00A75B9A"
-            BuildableName = "BleIndoorBeaconExample.app"
-            BlueprintName = "BleIndoorBeaconExample"
-            ReferencedContainer = "container:BleIndoorBeaconExample.xcodeproj">
+            BuildableName = "IndoorBeaconExample.app"
+            BlueprintName = "IndoorBeaconExample"
+            ReferencedContainer = "container:IndoorBeaconExample.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </LaunchAction>
@@ -72,9 +72,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "13B07F861A680F5B00A75B9A"
-            BuildableName = "BleIndoorBeaconExample.app"
-            BlueprintName = "BleIndoorBeaconExample"
-            ReferencedContainer = "container:BleIndoorBeaconExample.xcodeproj">
+            BuildableName = "IndoorBeaconExample.app"
+            BlueprintName = "IndoorBeaconExample"
+            ReferencedContainer = "container:IndoorBeaconExample.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </ProfileAction>

@@ -1,5 +1,5 @@
-import BleIndoorBeacon from './NativeBleIndoorBeacon';
+import IndoorBeacon from './NativeIndoorBeacon';
 
 export function multiply(a: number, b: number): number {
-  return BleIndoorBeacon.multiply(a, b);
+  return IndoorBeacon.multiply(a, b);
 }

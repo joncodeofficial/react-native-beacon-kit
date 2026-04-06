@@ -1,6 +1,6 @@
-#import "BleIndoorBeacon.h"
+#import "IndoorBeacon.h"
 
-@implementation BleIndoorBeacon
+@implementation IndoorBeacon
 - (NSNumber *)multiply:(double)a b:(double)b {
     NSNumber *result = @(a * b);
 
@@ -10,12 +10,12 @@
 - (std::shared_ptr<facebook::react::TurboModule>)getTurboModule:
     (const facebook::react::ObjCTurboModule::InitParams &)params
 {
-    return std::make_shared<facebook::react::NativeBleIndoorBeaconSpecJSI>(params);
+    return std::make_shared<facebook::react::NativeIndoorBeaconSpecJSI>(params);
 }
 
 + (NSString *)moduleName
 {
-  return @"BleIndoorBeacon";
+  return @"IndoorBeacon";
 }
 
 @end

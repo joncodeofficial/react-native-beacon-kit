@@ -1,5 +1,5 @@
 buildscript {
-  ext.BleIndoorBeacon = [
+  ext.IndoorBeacon = [
     kotlinVersion: "2.0.21",
     minSdkVersion: 24,
     compileSdkVersion: 36,
@@ -11,7 +11,7 @@ buildscript {
       return rootProject.ext.get(prop)
     }
 
-    return BleIndoorBeacon[prop]
+    return IndoorBeacon[prop]
   }
 
   repositories {
@@ -33,7 +33,7 @@ apply plugin: "kotlin-android"
 apply plugin: "com.facebook.react"
 
 android {
-  namespace "com.bleindoorbeacon"
+  namespace "com.indoorbeacon"
 
   compileSdkVersion getExtOrDefault("compileSdkVersion")
 

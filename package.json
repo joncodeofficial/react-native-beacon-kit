@@ -1,5 +1,5 @@
 {
-  "name": "react-native-ble-indoor-beacon",
+  "name": "react-native-indoor-beacon",
   "version": "0.1.0",
   "description": "description",
   "main": "./lib/module/index.js",
@@ -32,7 +32,7 @@
     "!**/.*"
   ],
   "scripts": {
-    "example": "yarn workspace react-native-ble-indoor-beacon-example",
+    "example": "yarn workspace react-native-indoor-beacon-example",
     "clean": "del-cli android/build example/android/build example/android/app/build example/ios/build lib",
     "prepare": "bob build",
     "typecheck": "tsc",
@@ -49,14 +49,14 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/joncodeofficial/react-native-ble-indoor-beacon.git"
+    "url": "git+https://github.com/joncodeofficial/react-native-indoor-beacon.git"
   },
   "author": "joncodeofficial <gran_200014@hotmail.com> (https://github.com/joncodeofficial)",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/joncodeofficial/react-native-ble-indoor-beacon/issues"
+    "url": "https://github.com/joncodeofficial/react-native-indoor-beacon/issues"
   },
-  "homepage": "https://github.com/joncodeofficial/react-native-ble-indoor-beacon#readme",
+  "homepage": "https://github.com/joncodeofficial/react-native-indoor-beacon#readme",
   "publishConfig": {
     "registry": "https://registry.npmjs.org/"
   },
@@ -114,11 +114,11 @@
     ]
   },
   "codegenConfig": {
-    "name": "BleIndoorBeaconSpec",
+    "name": "IndoorBeaconSpec",
     "type": "modules",
     "jsSrcsDir": "src",
     "android": {
-      "javaPackageName": "com.bleindoorbeacon"
+      "javaPackageName": "com.indoorbeacon"
     }
   },
   "commitlint": {

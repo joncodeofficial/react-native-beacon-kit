@@ -1,5 +1,5 @@
 import { Text, View, StyleSheet } from 'react-native';
-import { multiply } from 'react-native-ble-indoor-beacon';
+import { multiply } from 'react-native-indoor-beacon';
 
 const result = multiply(3, 7);
 

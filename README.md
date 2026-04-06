@@ -1,4 +1,4 @@
-# react-native-ble-indoor-beacon
+# react-native-indoor-beacon
 
 description
 
@@ -6,7 +6,7 @@ description
 
 
 ```sh
-npm install react-native-ble-indoor-beacon
+npm install react-native-indoor-beacon
 ```
 
 
@@ -14,7 +14,7 @@ npm install react-native-ble-indoor-beacon
 
 
 ```js
-import { multiply } from 'react-native-ble-indoor-beacon';
+import { multiply } from 'react-native-indoor-beacon';
 
 // ...
 
