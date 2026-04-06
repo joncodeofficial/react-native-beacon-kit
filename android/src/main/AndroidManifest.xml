@@ -1,2 +1,36 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+  <!-- Bluetooth -->
+  <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
+  <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
+  <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
+  <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+
+  <!-- Ubicación (requerida para detectar beacons en todas las versiones) -->
+  <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+  <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+
+  <!-- Background scanning real (Android 10+) -->
+  <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+
+  <!-- Foreground Service para background scanning continuo -->
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+
+  <!-- Evitar que el CPU duerma durante el escaneo -->
+  <uses-permission android:name="android.permission.WAKE_LOCK" />
+
+  <application>
+    <!-- Foreground service de AltBeacon para background scanning -->
+    <service
+      android:name="org.altbeacon.beacon.service.BeaconService"
+      android:enabled="true"
+      android:exported="false"
+      android:foregroundServiceType="location" />
+
+    <service
+      android:name="org.altbeacon.beacon.BeaconIntentProcessor"
+      android:exported="false" />
+  </application>
+
 </manifest>
