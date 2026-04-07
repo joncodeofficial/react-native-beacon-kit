@@ -11,7 +11,7 @@ Removed `proximity` field (immediate/near/far) because the thresholds are arbitr
 depend on the use case and beacon calibration. If re-added, it should be configurable:
 
 ```ts
-IndoorBeacon.configure({
+Beacon.configure({
   proximityThresholds: {
     immediate: 0.5,
     near: 3.0,
@@ -24,7 +24,7 @@ Currently `void`. If the BeaconManager fails to initialize (e.g. Bluetooth off),
 there is no way to know. A Promise would let the developer handle it.
 
 ```ts
-await IndoorBeacon.configure(config); // can reject with reason
+await Beacon.configure(config); // can reject with reason
 ```
 
 ### Region-level callbacks
@@ -32,7 +32,7 @@ Currently `onBeaconsRanged` fires for all regions. For apps monitoring multiple 
 filtering by region identifier would be useful:
 
 ```ts
-IndoorBeacon.onBeaconsRanged('zone-a', (event) => { ... });
+Beacon.onBeaconsRanged('zone-a', (event) => { ... });
 ```
 
 ### getActiveRegions()
@@ -40,8 +40,8 @@ No way to query which regions are currently being ranged or monitored.
 Useful for cleanup on app restart.
 
 ```ts
-const regions = await IndoorBeacon.getRangedRegions();
-const monitored = await IndoorBeacon.getMonitoredRegions();
+const regions = await Beacon.getRangedRegions();
+const monitored = await Beacon.getMonitoredRegions();
 ```
 
 ---
@@ -90,7 +90,7 @@ Simpler alternative to Kalman for cases where low latency is not critical.
 Average of last N readings per beacon.
 
 ```ts
-IndoorBeacon.configure({
+Beacon.configure({
   smoothing: { type: 'moving-average', window: 5 }
 })
 ```
@@ -100,7 +100,7 @@ Given a list of detected beacons, return the closest one.
 Simple but useful for wayfinding and zone detection.
 
 ```ts
-const nearest = IndoorBeacon.getNearestBeacon(beacons);
+const nearest = Beacon.getNearestBeacon(beacons);
 ```
 
 ### Signal stability score
@@ -116,7 +116,7 @@ Given 3+ beacons with known positions, estimate the user's (x, y) position.
 Requires the developer to provide a floor map with beacon coordinates.
 
 ```ts
-const position = IndoorBeacon.estimatePosition(beacons, beaconMap);
+const position = Beacon.estimatePosition(beacons, beaconMap);
 // { x: 12.4, y: 8.1, confidence: 0.87 }
 ```
 
@@ -124,14 +124,14 @@ const position = IndoorBeacon.estimatePosition(beacons, beaconMap);
 Map beacon minor IDs to named zones. Fire an event when the user moves between zones.
 
 ```ts
-IndoorBeacon.configure({
+Beacon.configure({
   zones: [
     { name: 'entrance', beacons: [{ major: 1, minor: 1 }] },
     { name: 'hall-a',   beacons: [{ major: 1, minor: 2 }, { major: 1, minor: 3 }] },
   ]
 });
 
-IndoorBeacon.onZoneChanged((event) => {
+Beacon.onZoneChanged((event) => {
   // event.zone — 'entrance' | 'hall-a' | ...
 });
 ```
@@ -172,4 +172,4 @@ iOS implementation not started. Notes for when it begins:
 - [ ] Add `CHANGELOG.md`
 - [ ] Test on Android 12, 13, 14
 - [ ] Test with multiple beacon manufacturers
-- [ ] Publish to npm as `react-native-indoor-beacon`
+- [ ] Publish to npm as `react-native-beacon`

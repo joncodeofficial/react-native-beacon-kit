@@ -1,4 +1,4 @@
-package indoorbeacon.example
+package beacon.example
 
 import android.app.Application
 import com.facebook.react.PackageList

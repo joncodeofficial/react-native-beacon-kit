@@ -2,7 +2,7 @@
   "compilerOptions": {
     "rootDir": ".",
     "paths": {
-      "react-native-indoor-beacon": ["./src/index"]
+      "react-native-beacon": ["./src/index"]
     },
     "allowUnreachableCode": false,
     "allowUnusedLabels": false,

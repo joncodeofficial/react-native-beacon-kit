@@ -8,7 +8,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import IndoorBeacon, { type Beacon } from 'react-native-indoor-beacon';
+import Beacon, { type Beacon as BeaconType } from 'react-native-beacon';
 
 async function requestPermissions() {
   if (Platform.OS !== 'android') return;
@@ -31,12 +31,12 @@ const TEST_REGION = {
 
 export default function App() {
   const [hasPermissions, setHasPermissions] = useState<boolean | null>(null);
-  const [beacons, setBeacons] = useState<Beacon[]>([]);
+  const [beacons, setBeacons] = useState<BeaconType[]>([]);
   const [regionState, setRegionState] = useState<string>('unknown');
   const [isRanging, setIsRanging] = useState(false);
 
   useEffect(() => {
-    IndoorBeacon.configure({
+    Beacon.configure({
       scanPeriod: 5000,
       betweenScanPeriod: 0,
       foregroundService: true,
@@ -44,14 +44,14 @@ export default function App() {
     });
 
     requestPermissions().then(() => {
-      IndoorBeacon.checkPermissions().then(setHasPermissions);
+      Beacon.checkPermissions().then(setHasPermissions);
     });
 
-    const rangingSub = IndoorBeacon.onBeaconsRanged((event) => {
+    const rangingSub = Beacon.onBeaconsRanged((event) => {
       setBeacons(event.beacons);
     });
 
-    const monitorSub = IndoorBeacon.onRegionStateChanged((event) => {
+    const monitorSub = Beacon.onRegionStateChanged((event) => {
       setRegionState(event.state);
     });
 
@@ -62,23 +62,23 @@ export default function App() {
   }, []);
 
   const handleStartRanging = async () => {
-    await IndoorBeacon.startRanging(TEST_REGION);
+    await Beacon.startRanging(TEST_REGION);
     setIsRanging(true);
   };
 
   const handleStopRanging = async () => {
-    await IndoorBeacon.stopRanging(TEST_REGION);
+    await Beacon.stopRanging(TEST_REGION);
     setIsRanging(false);
     setBeacons([]);
   };
 
   const handleStartMonitoring = () => {
-    IndoorBeacon.startMonitoring(TEST_REGION);
+    Beacon.startMonitoring(TEST_REGION);
   };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>IndoorBeacon Test</Text>
+      <Text style={styles.title}>Beacon Test</Text>
 
       <Text style={styles.status}>
         Permissions:{' '}
