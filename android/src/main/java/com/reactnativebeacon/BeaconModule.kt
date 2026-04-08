@@ -50,6 +50,9 @@ class BeaconModule(reactContext: ReactApplicationContext) :
       it.beaconParsers.add(
         BeaconParser().setBeaconLayout("m:2-3=beac,i:4-19,i:20-21,i:22-23,p:24-24,d:25-25")
       )
+      // Default scan interval: 5 seconds
+      it.foregroundScanPeriod = 5000L
+      it.backgroundScanPeriod = 5000L
       beaconManager = it
     }
   }
