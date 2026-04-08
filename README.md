@@ -150,9 +150,17 @@ This is what most other beacon libraries for React Native never implemented.
 - Foreground service keeps scanning alive even when the app is killed
 
 ### iOS
-- Background ranging is limited by iOS — use monitoring to wake the app
-- Add `NSLocationAlwaysAndWhenInUseUsageDescription` to `Info.plist`
-- Enable "Location updates" background mode in Xcode capabilities
+> iOS support is in development. Android is fully supported.
+
+When iOS is released, it will require:
+- `NSLocationAlwaysAndWhenInUseUsageDescription` in `Info.plist`
+- `NSLocationWhenInUseUsageDescription` in `Info.plist`
+- "Location updates" background mode enabled in Xcode capabilities
+
+**Background ranging on iOS** works differently from Android. iOS does not support
+continuous background ranging — instead, use `startMonitoring()` to wake the app
+when the user enters a region, then start ranging from that callback.
+iOS gives ~10 seconds of execution time per region event.
 
 ## License
 
