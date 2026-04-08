@@ -21,21 +21,21 @@ export interface BeaconScanConfig {
 }
 
 export interface Spec extends TurboModule {
-  // Verifica si los permisos ya fueron concedidos (no los pide)
+  // Checks permissions without requesting them — the developer's responsibility
   checkPermissions(): Promise<boolean>;
 
-  // Configura intervalos de escaneo y foreground service
+  // Sets scan intervals and optionally enables the foreground service
   configure(config: BeaconScanConfig): void;
 
-  // Ranging: detecta beacons cercanos con RSSI y distancia (~cada 1s)
+  // Ranging: detects nearby beacons with RSSI and distance (~every 1s)
   startRanging(region: BeaconRegion): Promise<void>;
   stopRanging(region: BeaconRegion): Promise<void>;
 
-  // Monitoring: detecta entrada/salida de regiones (eficiente en batería)
+  // Monitoring: detects region entry/exit (battery efficient)
   startMonitoring(region: BeaconRegion): Promise<void>;
   stopMonitoring(region: BeaconRegion): Promise<void>;
 
-  // Requerido por NativeEventEmitter
+  // Required by NativeEventEmitter
   addListener(eventName: string): void;
   removeListeners(count: number): void;
 }
