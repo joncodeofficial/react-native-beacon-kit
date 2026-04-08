@@ -67,7 +67,7 @@ class BeaconModule(reactContext: ReactApplicationContext) :
         context, Manifest.permission.BLUETOOTH_SCAN
       ) == PackageManager.PERMISSION_GRANTED
     } else {
-      true // Android < 12 no requiere BLUETOOTH_SCAN
+      true // Android < 12 does not require BLUETOOTH_SCAN
     }
 
     promise.resolve(hasLocation && hasBluetooth)
@@ -239,8 +239,6 @@ class BeaconModule(reactContext: ReactApplicationContext) :
       } else {
         beacon.distance
       }
-
-      android.util.Log.d("Beacon", "MAC: ${beacon.bluetoothAddress} UUID: ${beacon.id1}")
 
       beaconArray.pushMap(Arguments.createMap().apply {
         putString("uuid", beacon.id1?.toString() ?: "")
