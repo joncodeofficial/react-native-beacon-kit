@@ -8,7 +8,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import Beacon, { type Beacon as BeaconType } from 'react-native-beacon';
+import Beacon, { type Beacon as BeaconType } from 'react-native-beacon-kit';
 
 async function requestPermissions() {
   if (Platform.OS !== 'android') return;
@@ -21,7 +21,23 @@ async function requestPermissions() {
     permissions.push(PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT);
   }
 
-  await PermissionsAndroid.requestMultiple(permissions);
+  if (Platform.Version >= 33) {
+    permissions.push(PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS);
+  }
+
+  const results = await PermissionsAndroid.requestMultiple(permissions);
+
+  // ACCESS_BACKGROUND_LOCATION must be requested separately — Android rejects it
+  // when bundled with other permissions in the same requestMultiple() call.
+  // Required on Android 10+ for BLE scanning to continue with the screen off.
+  if (
+    Platform.Version >= 29 &&
+    results[PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION] === 'granted'
+  ) {
+    await PermissionsAndroid.request(
+      PermissionsAndroid.PERMISSIONS.ACCESS_BACKGROUND_LOCATION
+    );
+  }
 }
 
 const TEST_REGION = {
@@ -37,21 +53,46 @@ export default function App() {
 
   useEffect(() => {
     Beacon.configure({
-      scanPeriod: 5000,
+      // foregroundScanPeriod defaults to 1100ms (fast detection in foreground)
+      // backgroundScanPeriod defaults to 10000ms (safe from Android BLE throttle)
       betweenScanPeriod: 0,
       foregroundService: true,
       kalmanFilter: { enabled: true },
     });
 
-    requestPermissions().then(() => {
+    requestPermissions().then(async () => {
       Beacon.checkPermissions().then(setHasPermissions);
+      const exempt = await Beacon.isIgnoringBatteryOptimizations();
+      console.log(`[DOZE] battery optimization exempt: ${exempt}`);
+      if (!exempt) {
+        Beacon.requestIgnoreBatteryOptimizations();
+      }
+      // NOTE: openAutostartSettings() intentionally NOT called here.
+      // Calling it automatically sends the app to background right after startup,
+      // triggering IMPORTANCE_CHANGE events in the BLE stack that cause scan data
+      // loss on Xiaomi/MIUI. Call it only from a user-initiated onboarding action.
     });
 
     const rangingSub = Beacon.onBeaconsRanged((event) => {
+      const ts = new Date().toISOString();
+      if (event.beacons.length === 0) {
+        console.log(`[DOZE] ${ts} — scan fired, 0 beacons`);
+      } else {
+        event.beacons.forEach((b) => {
+          console.log(
+            `[DOZE] ${ts} — ${b.uuid} (${b.major}/${b.minor}) ` +
+              `rssi=${b.rssi} dBm | filtered=${b.distance.toFixed(2)}m | raw=${b.rawDistance.toFixed(2)}m`
+          );
+        });
+      }
       setBeacons(event.beacons);
     });
 
     const monitorSub = Beacon.onRegionStateChanged((event) => {
+      const ts = new Date().toISOString();
+      console.log(
+        `[DOZE] ${ts} — region ${event.state}: ${event.region.identifier}`
+      );
       setRegionState(event.state);
     });
 

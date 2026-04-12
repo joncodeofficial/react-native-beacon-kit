@@ -11011,6 +11011,7 @@ __metadata:
     react: "npm:19.2.0"
     react-dom: "npm:19.2.0"
     react-native: "npm:0.83.0"
+    react-native-beacon-kit: "npm:*"
     react-native-builder-bob: "npm:^0.41.0"
     react-native-monorepo-config: "npm:^0.3.3"
     react-native-web: "npm:~0.21.1"
@@ -11019,7 +11020,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"react-native-beacon-kit@workspace:.":
+"react-native-beacon-kit@npm:*, react-native-beacon-kit@workspace:.":
   version: 0.0.0-use.local
   resolution: "react-native-beacon-kit@workspace:."
   dependencies:

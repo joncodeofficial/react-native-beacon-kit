@@ -16,21 +16,38 @@
   <!-- Foreground Service para background scanning continuo -->
   <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
   <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+  <!-- connectedDevice type required for BLE foreground service on Android 14+ -->
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
+
+  <!-- Notificación del foreground service (requerido Android 13+) -->
+  <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
   <!-- Evitar que el CPU duerma durante el escaneo -->
   <uses-permission android:name="android.permission.WAKE_LOCK" />
 
   <application>
     <!-- Foreground service de AltBeacon para background scanning -->
+    <!-- foregroundServiceType includes both location and connectedDevice so Android
+         recognises this as legitimate BLE work, not just location — critical for
+         Xiaomi/HyperOS and Android 14+ to keep the BLE radio active. -->
     <service
       android:name="org.altbeacon.beacon.service.BeaconService"
       android:enabled="true"
       android:exported="false"
-      android:foregroundServiceType="location" />
+      android:foregroundServiceType="location|connectedDevice" />
 
     <service
       android:name="org.altbeacon.beacon.BeaconIntentProcessor"
       android:exported="false" />
+
+    <!-- Our own foreground service for the scanning notification.
+         Used when intent scanning strategy is active (AltBeacon's BeaconService
+         is bypassed, so we provide the foreground notification ourselves). -->
+    <service
+      android:name=".BeaconForegroundService"
+      android:enabled="true"
+      android:exported="false"
+      android:foregroundServiceType="location|connectedDevice" />
   </application>
 
 </manifest>

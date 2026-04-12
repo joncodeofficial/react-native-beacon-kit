@@ -15,6 +15,7 @@
     "react": "19.2.0",
     "react-dom": "19.2.0",
     "react-native": "0.83.0",
+    "react-native-beacon-kit": "*",
     "react-native-web": "~0.21.1"
   },
   "devDependencies": {

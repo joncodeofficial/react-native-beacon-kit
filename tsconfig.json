@@ -2,7 +2,7 @@
   "compilerOptions": {
     "rootDir": ".",
     "paths": {
-      "react-native-beacon": ["./src/index"]
+      "react-native-beacon-kit": ["./src/index"]
     },
     "allowUnreachableCode": false,
     "allowUnusedLabels": false,
