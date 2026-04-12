@@ -53,11 +53,14 @@ export default function App() {
 
   useEffect(() => {
     Beacon.configure({
-      // foregroundScanPeriod defaults to 1100ms (fast detection in foreground)
-      // backgroundScanPeriod defaults to 10000ms (safe from Android BLE throttle)
+      scanPeriod: 1100, // screen on: update every ~1s
+      backgroundScanPeriod: 10000, // screen off: safe from Android BLE throttle
       betweenScanPeriod: 0,
       foregroundService: true,
       kalmanFilter: { enabled: true },
+      // Enable aggressive background mode for MIUI/HyperOS (Xiaomi test device).
+      // Adds watchdog, wake lock, and forced LOW_LATENCY scan mode.
+      aggressiveBackground: true,
     });
 
     requestPermissions().then(async () => {
