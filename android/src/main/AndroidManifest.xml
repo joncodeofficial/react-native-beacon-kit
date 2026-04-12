@@ -8,7 +8,6 @@
 
   <!-- Ubicación (requerida para detectar beacons en todas las versiones) -->
   <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
-  <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 
   <!-- Background scanning real (Android 10+) -->
   <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
@@ -36,18 +35,6 @@
       android:exported="false"
       android:foregroundServiceType="location|connectedDevice" />
 
-    <service
-      android:name="org.altbeacon.beacon.BeaconIntentProcessor"
-      android:exported="false" />
-
-    <!-- Our own foreground service for the scanning notification.
-         Used when intent scanning strategy is active (AltBeacon's BeaconService
-         is bypassed, so we provide the foreground notification ourselves). -->
-    <service
-      android:name=".BeaconForegroundService"
-      android:enabled="true"
-      android:exported="false"
-      android:foregroundServiceType="location|connectedDevice" />
   </application>
 
 </manifest>
