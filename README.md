@@ -3,12 +3,13 @@
 iBeacon / AltBeacon library for React Native built on New Architecture (TurboModules + JSI).
 Real background scanning on Android via foreground service — what other libraries promised but never delivered.
 
-> **Platform support:** Android fully supported. iOS in development.
+> **Platform support:** Android and iOS fully supported.
 
 ## Features
 
 - New Architecture (TurboModules + JSI) — no legacy bridge
 - Real background scanning on Android via foreground service
+- Background region monitoring on iOS (entry/exit events with ~10s ranging bursts)
 - iBeacon + AltBeacon support (~85% of the beacon market)
 - Kalman filter for stable distance readings (optional)
 - Configurable scan intervals
@@ -365,17 +366,38 @@ This enables three additional mechanisms:
 - Foreground service keeps scanning alive even when the app is killed
 
 ### iOS
-> iOS support is in development. Android is fully supported.
 
-When iOS is released, it will require:
-- `NSLocationAlwaysAndWhenInUseUsageDescription` in `Info.plist`
-- `NSLocationWhenInUseUsageDescription` in `Info.plist`
-- "Location updates" background mode enabled in Xcode capabilities
+Add to `Info.plist`:
 
-**Background ranging on iOS** works differently from Android. iOS does not support
-continuous background ranging — instead, use `startMonitoring()` to wake the app
-when the user enters a region, then start ranging from that callback.
-iOS gives ~10 seconds of execution time per region event.
+```xml
+<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+<string>This app uses your location to detect nearby beacons.</string>
+<key>NSLocationWhenInUseUsageDescription</key>
+<string>This app uses your location to detect nearby beacons.</string>
+```
+
+Enable **Location updates** background mode in Xcode → your target → Signing & Capabilities → Background Modes.
+
+**Background ranging on iOS** works differently from Android. iOS does not support continuous background ranging — instead, use `startMonitoring()` to wake the app when the user enters a region, then start ranging from that callback. iOS gives ~10 seconds of execution time per region event.
+
+```ts
+// Recommended iOS background pattern
+Beacon.startMonitoring({ identifier: 'my-region', uuid: '...' });
+
+const sub = Beacon.onRegionStateChanged(({ state }) => {
+  if (state === 'inside') {
+    // iOS woke the app — start ranging for the ~10s window
+    Beacon.startRanging({ identifier: 'my-region', uuid: '...' });
+  }
+});
+```
+
+**iOS-specific behaviour:**
+- `foregroundService`, `aggressiveBackground`, `scanPeriod`, `backgroundScanPeriod`, `betweenScanPeriod` are Android-only — silently ignored on iOS
+- `isIgnoringBatteryOptimizations()` always returns `true` on iOS
+- `requestIgnoreBatteryOptimizations()` and `openAutostartSettings()` are no-ops on iOS
+- `macAddress` is always an empty string — iOS does not expose MAC addresses (privacy restriction since iOS 13)
+- `txPower` is always `-59` — `CLBeacon` does not expose the raw tx power value
 
 ## License
 
