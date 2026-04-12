@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.0](https://github.com/joncodeofficial/react-native-beacon-kit/compare/v0.2.0...v0.3.0) (2026-04-12)
+
+### Features
+
+* implement iOS support via CLLocationManager (ranging + monitoring + Kalman filter) ([b36ac41](https://github.com/joncodeofficial/react-native-beacon-kit/commit/b36ac4179902dd99de83ef5c455670360f6692ed))
+
 ## [0.2.0](https://github.com/joncodeofficial/react-native-beacon-kit/compare/v0.1.3...v0.2.0) (2026-04-12)
 
 ### Features
