@@ -1,6 +1,6 @@
 {
   "name": "react-native-beacon-kit",
-  "version": "0.1.3",
+  "version": "0.2.0",
   "description": "iBeacon & AltBeacon for React Native — New Architecture (TurboModules + JSI) with real background scanning.",
   "main": "./lib/module/index.js",
   "types": "./lib/typescript/src/index.d.ts",
