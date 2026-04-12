@@ -64,14 +64,14 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/joncodeofficial/react-native-beacon.git"
+    "url": "git+https://github.com/joncodeofficial/react-native-beacon-kit.git"
   },
   "author": "joncodeofficial <gran_200014@hotmail.com> (https://github.com/joncodeofficial)",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/joncodeofficial/react-native-beacon/issues"
+    "url": "https://github.com/joncodeofficial/react-native-beacon-kit/issues"
   },
-  "homepage": "https://github.com/joncodeofficial/react-native-beacon#readme",
+  "homepage": "https://github.com/joncodeofficial/react-native-beacon-kit#readme",
   "publishConfig": {
     "registry": "https://registry.npmjs.org/"
   },
