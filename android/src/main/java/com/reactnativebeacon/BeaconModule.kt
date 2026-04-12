@@ -4,10 +4,15 @@ import android.Manifest
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.os.PowerManager
 import android.provider.Settings
 import androidx.core.content.ContextCompat
@@ -45,6 +50,36 @@ class BeaconModule(reactContext: ReactApplicationContext) :
 
   private var wakeLock: PowerManager.WakeLock? = null
 
+  // aggressiveBackground mode: watchdog + wake lock + forced LOW_LATENCY.
+  // Only active when configure({ aggressiveBackground: true }) is called.
+  // Needed on Xiaomi/HyperOS and other OEMs with aggressive BLE power management.
+  private var aggressiveMode: Boolean = false
+
+  // User-configured scan periods. In aggressive mode, AltBeacon always uses
+  // foregroundScanPeriod (because setBackgroundMode(false) is forced), so we
+  // switch it manually between these two values based on screen state.
+  private var userForegroundScanPeriod: Long = 10_000L
+  private var userBackgroundScanPeriod: Long = 10_000L
+
+  // Screen state receiver — registered only in aggressive mode.
+  // ACTION_SCREEN_ON/OFF cannot be declared in the manifest; must be registered dynamically.
+  private var screenReceiverRegistered: Boolean = false
+  private val screenReceiver = object : BroadcastReceiver() {
+    override fun onReceive(context: Context, intent: Intent) {
+      when (intent.action) {
+        Intent.ACTION_SCREEN_OFF -> onScreenOff()
+        Intent.ACTION_SCREEN_ON  -> onScreenOn()
+      }
+    }
+  }
+
+  // Watchdog: restarts BLE ranging every 20s to beat MIUI's ~20s scan-suspend timer.
+  // MIUI/HyperOS force-suspends BLE scans after ~30s of screen-off even with
+  // LOW_LATENCY mode and a foreground service. Restarting the scan resets the timer.
+  private val watchdogHandler = Handler(Looper.getMainLooper())
+  private var watchdogRunnable: Runnable? = null
+  private val activeRangingRegions = java.util.concurrent.CopyOnWriteArrayList<Region>()
+
   // Initializes BeaconManager once with parsers and scan periods.
   // BeaconManager is an app-level singleton that outlives JS reloads. BeaconModule
   // gets a new instance on every Metro reload (beaconManager resets to null), so
@@ -67,12 +102,11 @@ class BeaconModule(reactContext: ReactApplicationContext) :
         it.backgroundScanPeriod = 10_000L
         Companion.beaconManagerInitialized = true
       }
-      // Force LOW_LATENCY scan mode on every init including Metro reloads.
-      // Without this, AltBeacon defaults to LOW_POWER in background mode.
-      // MIUI logs show "force suspend scan [scanModeApp 0]" (LOW_POWER = 0)
-      // when screen turns off — LOW_LATENCY (mode 2) is treated as high-priority
-      // and survives OEM power management restrictions.
-      it.setBackgroundMode(false)
+      // In aggressive mode: force LOW_LATENCY scan mode on every init including
+      // Metro reloads. MIUI logs show "force suspend scan [scanModeApp 0]"
+      // (LOW_POWER = 0) when screen turns off — LOW_LATENCY (mode 2) is treated
+      // as high-priority and survives OEM power management restrictions.
+      if (aggressiveMode) it.setBackgroundMode(false)
       beaconManager = it
     }
   }
@@ -98,14 +132,31 @@ class BeaconModule(reactContext: ReactApplicationContext) :
 
   // Sets scan intervals and optionally enables the foreground service
   override fun configure(config: ReadableMap) {
+    // aggressiveBackground must be read before getOrCreateBeaconManager() because
+    // the manager init conditionally calls setBackgroundMode(false) based on this flag.
+    if (config.hasKey("aggressiveBackground")) {
+      aggressiveMode = config.getBoolean("aggressiveBackground")
+    }
+
     val manager = getOrCreateBeaconManager()
 
     if (config.hasKey("scanPeriod")) {
-      manager.foregroundScanPeriod = config.getDouble("scanPeriod").toLong()
+      userForegroundScanPeriod = config.getDouble("scanPeriod").toLong()
+    }
+    if (config.hasKey("backgroundScanPeriod")) {
+      userBackgroundScanPeriod = config.getDouble("backgroundScanPeriod").toLong()
     }
 
-    if (config.hasKey("backgroundScanPeriod")) {
-      manager.backgroundScanPeriod = config.getDouble("backgroundScanPeriod").toLong()
+    // In aggressive mode, setBackgroundMode(false) makes AltBeacon always use
+    // foregroundScanPeriod. We switch it manually based on current screen state
+    // so the developer's scanPeriod applies when screen is on and backgroundScanPeriod
+    // when screen is off — without relying on AltBeacon's lifecycle detection.
+    if (aggressiveMode) {
+      val isScreenOn = reactApplicationContext.getSystemService(PowerManager::class.java).isInteractive
+      manager.foregroundScanPeriod = if (isScreenOn) userForegroundScanPeriod else userBackgroundScanPeriod
+    } else {
+      manager.foregroundScanPeriod = userForegroundScanPeriod
+      manager.backgroundScanPeriod = userBackgroundScanPeriod
     }
 
     if (config.hasKey("betweenScanPeriod")) {
@@ -146,7 +197,10 @@ class BeaconModule(reactContext: ReactApplicationContext) :
       val channel = NotificationChannel(
         channelId,
         "Beacon Scanning",
-        NotificationManager.IMPORTANCE_DEFAULT
+        // IMPORTANCE_LOW: visible in the notification drawer, no sound or vibration.
+        // Appropriate for a persistent "scanning active" indicator. IMPORTANCE_DEFAULT
+        // would play a sound each time the service restarts, which is intrusive.
+        NotificationManager.IMPORTANCE_LOW
       ).apply {
         description = "Active while scanning for beacons in background"
       }
@@ -157,11 +211,23 @@ class BeaconModule(reactContext: ReactApplicationContext) :
     val title = notifConfig?.getString("title") ?: "Beacon"
     val text = notifConfig?.getString("text") ?: "Scanning for beacons..."
 
-    val notification = Notification.Builder(context, channelId)
+    val builder = Notification.Builder(context, channelId)
       .setContentTitle(title)
       .setContentText(text)
       .setSmallIcon(android.R.drawable.ic_menu_compass)
-      .build()
+      // Keeps the notification in the drawer — user cannot dismiss a foreground service
+      // notification, but setOngoing(true) makes this explicit and prevents some OEMs
+      // (MIUI in particular) from treating it as a transient notification.
+      .setOngoing(true)
+
+    // Android 12+ delays foreground service notifications by 10s unless
+    // FOREGROUND_SERVICE_IMMEDIATE is set. Show it right away so the user
+    // can see the scanning indicator and the service isn't silently missing.
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+      builder.setForegroundServiceBehavior(Notification.FOREGROUND_SERVICE_IMMEDIATE)
+    }
+
+    val notification = builder.build()
 
     val manager = getOrCreateBeaconManager()
 
@@ -178,21 +244,69 @@ class BeaconModule(reactContext: ReactApplicationContext) :
       Companion.foregroundServiceEnabled = true
     }
 
-    // Wake lock is acquired here — outside the foregroundServiceEnabled guard —
-    // because invalidate() releases it on every JS reload. A new BeaconModule
-    // instance must always re-acquire it even when the foreground service was
-    // already started in a previous session.
-    if (wakeLock?.isHeld != true) {
+    // Wake lock: only acquired in aggressive mode. Keeps the CPU awake so BLE
+    // callbacks fire with the screen off on OEMs that would otherwise let the CPU
+    // sleep between scan events. Skipped in normal mode to save battery.
+    // Acquired outside the foregroundServiceEnabled guard because invalidate()
+    // releases it on every JS reload — must re-acquire on each new BeaconModule instance.
+    if (aggressiveMode && wakeLock?.isHeld != true) {
       val pm = context.getSystemService(PowerManager::class.java)
       wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "beacon-kit:scanning")
       wakeLock!!.acquire()
     }
+
+    // Screen state receiver: switches scan period and watchdog based on screen on/off.
+    // Registered here (outside the foregroundServiceEnabled guard) so it's always
+    // re-registered on Metro reload even when the foreground service was already started.
+    if (aggressiveMode) registerScreenReceiver()
   }
 
   private fun disableForegroundService() {
+    unregisterScreenReceiver()
     wakeLock?.let { if (it.isHeld) it.release() }
     wakeLock = null
     Companion.foregroundServiceEnabled = false
+  }
+
+  private fun registerScreenReceiver() {
+    if (screenReceiverRegistered) return
+    val filter = IntentFilter().apply {
+      addAction(Intent.ACTION_SCREEN_OFF)
+      addAction(Intent.ACTION_SCREEN_ON)
+    }
+    reactApplicationContext.registerReceiver(screenReceiver, filter)
+    screenReceiverRegistered = true
+  }
+
+  private fun unregisterScreenReceiver() {
+    if (!screenReceiverRegistered) return
+    try { reactApplicationContext.unregisterReceiver(screenReceiver) } catch (_: Exception) {}
+    screenReceiverRegistered = false
+  }
+
+  // Called when screen turns off: switch to background scan period and start watchdog.
+  private fun onScreenOff() {
+    val manager = beaconManager ?: return
+    manager.foregroundScanPeriod = userBackgroundScanPeriod
+    try { manager.updateScanPeriods() } catch (_: Exception) {}
+    if (activeRangingRegions.isNotEmpty()) startWatchdog()
+  }
+
+  // Called when screen turns on: switch to foreground scan period and stop watchdog.
+  // Screen-on means the user is interacting — MIUI doesn't suspend BLE in this state,
+  // so the watchdog is unnecessary and wastes battery.
+  // Restarts active ranging immediately so the fast scan period (e.g. 1100ms) kicks in
+  // right away instead of waiting up to 10s for the current background scan to finish.
+  private fun onScreenOn() {
+    stopWatchdog()
+    val manager = beaconManager ?: return
+    manager.foregroundScanPeriod = userForegroundScanPeriod
+    for (region in activeRangingRegions) {
+      try {
+        manager.stopRangingBeacons(region)
+        manager.startRangingBeacons(region)
+      } catch (_: Exception) {}
+    }
   }
 
   // Ranging: detects nearby beacons with RSSI and distance (~every 1s)
@@ -212,6 +326,18 @@ class BeaconModule(reactContext: ReactApplicationContext) :
       manager.addRangeNotifier(rangeNotifier!!)
 
       manager.startRangingBeacons(beaconRegion)
+
+      // Track region for watchdog restarts (only used in aggressive mode)
+      if (activeRangingRegions.none { it.uniqueId == beaconRegion.uniqueId }) {
+        activeRangingRegions.add(beaconRegion)
+      }
+      // Start watchdog only if screen is already off — if screen is on, onScreenOff()
+      // will start it when the screen turns off.
+      if (aggressiveMode) {
+        val isScreenOn = reactApplicationContext.getSystemService(PowerManager::class.java).isInteractive
+        if (!isScreenOn) startWatchdog()
+      }
+
       promise.resolve(null)
     } catch (e: Exception) {
       promise.reject("RANGING_ERROR", e.message, e)
@@ -220,7 +346,12 @@ class BeaconModule(reactContext: ReactApplicationContext) :
 
   override fun stopRanging(region: ReadableMap, promise: Promise) {
     try {
-      getOrCreateBeaconManager().stopRangingBeacons(readableMapToRegion(region))
+      val beaconRegion = readableMapToRegion(region)
+      getOrCreateBeaconManager().stopRangingBeacons(beaconRegion)
+
+      activeRangingRegions.removeAll { it.uniqueId == beaconRegion.uniqueId }
+      if (activeRangingRegions.isEmpty()) stopWatchdog()
+
       promise.resolve(null)
     } catch (e: Exception) {
       promise.reject("RANGING_ERROR", e.message, e)
@@ -342,8 +473,44 @@ class BeaconModule(reactContext: ReactApplicationContext) :
   override fun addListener(eventName: String) {}
   override fun removeListeners(count: Double) {}
 
-  // Release the wake lock when the React Native bridge tears down
+  // Starts the BLE watchdog if not already running.
+  // Fires every WATCHDOG_INTERVAL_MS and restarts all active ranging regions to
+  // reset MIUI's BLE scan suspend timer before it hits the ~30s threshold.
+  private fun startWatchdog() {
+    if (watchdogRunnable != null) return
+    watchdogRunnable = object : Runnable {
+      override fun run() {
+        // try/finally guarantees postDelayed is always called so the watchdog
+        // never stops silently due to a null beaconManager or an unexpected exception.
+        try {
+          val manager = beaconManager ?: return
+          // Re-assert LOW_LATENCY and cycle each region to force a new startScan(),
+          // which resets the MIUI ~30s suspend countdown.
+          manager.setBackgroundMode(false)
+          for (region in activeRangingRegions) {
+            try {
+              manager.stopRangingBeacons(region)
+              manager.startRangingBeacons(region)
+            } catch (_: Exception) {}
+          }
+        } finally {
+          watchdogHandler.postDelayed(this, WATCHDOG_INTERVAL_MS)
+        }
+      }
+    }
+    watchdogHandler.postDelayed(watchdogRunnable!!, WATCHDOG_INTERVAL_MS)
+  }
+
+  private fun stopWatchdog() {
+    watchdogRunnable?.let { watchdogHandler.removeCallbacks(it) }
+    watchdogRunnable = null
+  }
+
+  // Release resources when the React Native bridge tears down (JS reload or app exit)
   override fun invalidate() {
+    unregisterScreenReceiver()
+    stopWatchdog()
+    activeRangingRegions.clear()
     wakeLock?.let { if (it.isHeld) it.release() }
     super.invalidate()
   }
@@ -439,6 +606,10 @@ class BeaconModule(reactContext: ReactApplicationContext) :
   companion object {
     const val NAME = NativeBeaconSpec.NAME
     private const val FOREGROUND_SERVICE_ID = 456
+    // Watchdog fires every 20s — 10s before MIUI's ~30s BLE scan suspend threshold.
+    // This gives a 10s safety margin and ensures at least one full 10s scan cycle
+    // completes between each restart before MIUI can suspend the radio.
+    private const val WATCHDOG_INTERVAL_MS = 20_000L
     // BeaconManager is a singleton that outlives JS reloads. BeaconModule gets a
     // new instance on every reload, so these flags must be static to remember
     // one-time setup calls already made on the live singleton.
