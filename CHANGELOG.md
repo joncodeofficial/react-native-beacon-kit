@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.1](https://github.com/joncodeofficial/react-native-beacon-kit/compare/v0.4.0...v0.4.1) (2026-04-13)
+
+### Bug Fixes
+
+* **android:** register range/monitor notifiers once per module instance ([0ad47e3](https://github.com/joncodeofficial/react-native-beacon-kit/commit/0ad47e39a4f19d0dc50b6805f5d4a24ac7740338))
+
 ## [0.4.0](https://github.com/joncodeofficial/react-native-beacon-kit/compare/v0.3.1...v0.4.0) (2026-04-13)
 
 ### Features
