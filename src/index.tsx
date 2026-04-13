@@ -39,6 +39,14 @@ export interface RegionStateChangedEvent {
   state: 'inside' | 'outside';
 }
 
+export interface BeaconFailureEvent {
+  region?: BeaconRegion;
+  code: string;
+  message: string;
+  nativeCode?: number;
+  domain?: string;
+}
+
 const emitter = new NativeEventEmitter(NativeBeacon);
 
 const Beacon = {
@@ -109,6 +117,20 @@ const Beacon = {
   onRegionStateChanged(callback: (event: RegionStateChangedEvent) => void) {
     return emitter.addListener(
       'onRegionStateChanged',
+      callback as (...args: readonly unknown[]) => unknown
+    );
+  },
+
+  onRangingFailed(callback: (event: BeaconFailureEvent) => void) {
+    return emitter.addListener(
+      'onRangingFailed',
+      callback as (...args: readonly unknown[]) => unknown
+    );
+  },
+
+  onMonitoringFailed(callback: (event: BeaconFailureEvent) => void) {
+    return emitter.addListener(
+      'onMonitoringFailed',
       callback as (...args: readonly unknown[]) => unknown
     );
   },

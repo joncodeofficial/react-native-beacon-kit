@@ -13,7 +13,11 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Button, FlatList, StyleSheet, Text, View } from 'react-native';
-import Beacon, { type Beacon as BeaconType } from 'react-native-beacon-kit';
+import Beacon, {
+  type Beacon as BeaconType,
+  type BeaconFailureEvent,
+} from 'react-native-beacon-kit';
+import { handleMonitorThenRangeStateChange } from './monitorThenRange';
 
 const REGION = {
   identifier: 'my-region',
@@ -27,10 +31,21 @@ export default function MonitorThenRangeExample() {
   >('unknown');
   const [beacons, setBeacons] = useState<BeaconType[]>([]);
   const [isMonitoring, setIsMonitoring] = useState(false);
+  const [lastError, setLastError] = useState<string | null>(null);
+
+  const handleFailure = useCallback((event: BeaconFailureEvent) => {
+    const prefix = event.region?.identifier
+      ? `${event.region.identifier}: `
+      : '';
+    const message = `[${event.code}] ${prefix}${event.message}`;
+    console.warn(`[beacon] ${message}`);
+    setLastError(message);
+  }, []);
 
   // Step 1: Register listeners at mount — independent of permissions and scanning state.
   useEffect(() => {
     const rangingSub = Beacon.onBeaconsRanged((event) => {
+      setLastError(null);
       setBeacons(event.beacons);
     });
 
@@ -38,44 +53,62 @@ export default function MonitorThenRangeExample() {
     // This is the core of the pattern — ranging is driven by monitoring events,
     // not by the user manually pressing a button.
     const monitorSub = Beacon.onRegionStateChanged(({ state }) => {
-      setRegionState(state as 'inside' | 'outside');
-
-      if (state === 'inside') {
-        // User entered the region — start ranging for precise distance readings
-        Beacon.startRanging(REGION);
-      } else {
-        // User left the region — stop ranging to save battery
-        Beacon.stopRanging(REGION);
-        setBeacons([]);
-      }
+      setLastError(null);
+      handleMonitorThenRangeStateChange(state as 'inside' | 'outside', REGION, {
+        setRegionState,
+        clearBeacons: () => setBeacons([]),
+        startRanging: Beacon.startRanging,
+        stopRanging: Beacon.stopRanging,
+      }).catch((error: unknown) => {
+        setLastError(
+          error instanceof Error ? error.message : 'Unknown ranging error'
+        );
+      });
     });
+
+    const rangingFailedSub = Beacon.onRangingFailed(handleFailure);
+    const monitoringFailedSub = Beacon.onMonitoringFailed(handleFailure);
 
     return () => {
       rangingSub.remove();
       monitorSub.remove();
+      rangingFailedSub.remove();
+      monitoringFailedSub.remove();
     };
-  }, []);
+  }, [handleFailure]);
 
   const handleStart = useCallback(async () => {
     if (startingRef.current) return;
     startingRef.current = true;
     try {
+      setLastError(null);
       // configure() already ran in App.tsx — just start monitoring here.
       // Ranging starts automatically from the onRegionStateChanged callback
       // above when the user enters the region.
       await Beacon.startMonitoring(REGION);
       setIsMonitoring(true);
+    } catch (error: unknown) {
+      setLastError(
+        error instanceof Error ? error.message : 'Unknown monitoring error'
+      );
     } finally {
       startingRef.current = false;
     }
   }, []);
 
   const handleStop = useCallback(async () => {
-    await Beacon.stopMonitoring(REGION);
-    await Beacon.stopRanging(REGION);
-    setIsMonitoring(false);
-    setRegionState('unknown');
-    setBeacons([]);
+    try {
+      setLastError(null);
+      await Beacon.stopMonitoring(REGION);
+      await Beacon.stopRanging(REGION);
+      setIsMonitoring(false);
+      setRegionState('unknown');
+      setBeacons([]);
+    } catch (error: unknown) {
+      setLastError(
+        error instanceof Error ? error.message : 'Unknown stop error'
+      );
+    }
   }, []);
 
   const stateColor =
@@ -103,6 +136,8 @@ export default function MonitorThenRangeExample() {
             ? 'Outside region — ranging paused'
             : 'Waiting for first region event...'}
       </Text>
+
+      {lastError ? <Text style={styles.error}>{lastError}</Text> : null}
 
       <View style={styles.buttons}>
         {!isMonitoring ? (
@@ -169,6 +204,11 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#888',
     marginBottom: 20,
+  },
+  error: {
+    color: '#a22',
+    fontSize: 12,
+    marginBottom: 16,
   },
   buttons: {
     marginBottom: 24,

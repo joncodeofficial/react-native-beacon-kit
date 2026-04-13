@@ -66,7 +66,7 @@
 
 // Events emitted to JS
 - (NSArray<NSString *> *)supportedEvents {
-    return @[@"onBeaconsRanged", @"onRegionStateChanged"];
+    return @[@"onBeaconsRanged", @"onRegionStateChanged", @"onRangingFailed", @"onMonitoringFailed"];
 }
 
 // TurboModule JSI bridge — required by New Architecture
@@ -379,7 +379,11 @@
 - (void)locationManager:(CLLocationManager *)manager
 rangingBeaconsDidFailForConstraint:(CLBeaconIdentityConstraint *)constraint
               withError:(NSError *)error API_AVAILABLE(ios(13.0)) {
-    // Ranging failed for this constraint — no-op. A future version could emit an error event.
+    NSString *identifier = [self identifierForConstraint:constraint];
+    [self sendFailureEventWithName:@"onRangingFailed"
+                            region:[self regionMapForConstraint:constraint identifier:identifier]
+                             error:error
+                              code:@"RANGING_ERROR"];
 }
 
 // ---------------------------------------------------------------------------
@@ -398,28 +402,86 @@ rangingBeaconsDidFailForConstraint:(CLBeaconIdentityConstraint *)constraint
 - (void)locationManager:(CLLocationManager *)manager
     monitoringDidFailForRegion:(CLRegion *)region
                      withError:(NSError *)error {
-    // Monitoring failed — no-op. A future version could emit an error event.
+    NSDictionary *regionMap = nil;
+    if ([region isKindOfClass:[CLBeaconRegion class]]) {
+        regionMap = [self regionMapForBeaconRegion:(CLBeaconRegion *)region];
+    }
+    [self sendFailureEventWithName:@"onMonitoringFailed"
+                            region:regionMap
+                             error:error
+                              code:@"MONITORING_ERROR"];
 }
 
 - (void)locationManager:(CLLocationManager *)manager didFailWithError:(NSError *)error {
-    // General failure — no-op.
+    for (NSString *identifier in _rangingConstraints) {
+        CLBeaconIdentityConstraint *constraint = _rangingConstraints[identifier];
+        [self sendFailureEventWithName:@"onRangingFailed"
+                                region:[self regionMapForConstraint:constraint identifier:identifier]
+                                 error:error
+                                  code:@"RANGING_ERROR"];
+    }
+
+    for (NSString *identifier in _monitoringRegions) {
+        CLBeaconRegion *region = _monitoringRegions[identifier];
+        [self sendFailureEventWithName:@"onMonitoringFailed"
+                                region:[self regionMapForBeaconRegion:region]
+                                 error:error
+                                  code:@"MONITORING_ERROR"];
+    }
 }
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 - (void)sendRegionStateEvent:(CLBeaconRegion *)region state:(NSString *)state {
+    [self sendEventWithName:@"onRegionStateChanged" body:@{
+        @"region": [self regionMapForBeaconRegion:region],
+        @"state":  state,
+    }];
+}
+
+- (NSString *)identifierForConstraint:(CLBeaconIdentityConstraint *)constraint API_AVAILABLE(ios(13.0)) {
+    for (NSString *key in _rangingConstraints) {
+        if ([_rangingConstraints[key] isEqual:constraint]) {
+            return key;
+        }
+    }
+    return @"";
+}
+
+- (NSDictionary *)regionMapForConstraint:(CLBeaconIdentityConstraint *)constraint
+                              identifier:(NSString *)identifier API_AVAILABLE(ios(13.0)) {
+    NSMutableDictionary *regionMap = [@{
+        @"identifier": identifier ?: @"",
+        @"uuid": constraint.UUID.UUIDString.lowercaseString,
+    } mutableCopy];
+    if (constraint.major) regionMap[@"major"] = constraint.major;
+    if (constraint.minor) regionMap[@"minor"] = constraint.minor;
+    return regionMap;
+}
+
+- (NSDictionary *)regionMapForBeaconRegion:(CLBeaconRegion *)region {
     NSMutableDictionary *regionMap = [@{
         @"identifier": region.identifier,
-        @"uuid":       region.UUID.UUIDString.lowercaseString,
+        @"uuid": region.UUID.UUIDString.lowercaseString,
     } mutableCopy];
     if (region.major) regionMap[@"major"] = region.major;
     if (region.minor) regionMap[@"minor"] = region.minor;
+    return regionMap;
+}
 
-    [self sendEventWithName:@"onRegionStateChanged" body:@{
-        @"region": regionMap,
-        @"state":  state,
-    }];
+- (void)sendFailureEventWithName:(NSString *)eventName
+                          region:(NSDictionary *)region
+                           error:(NSError *)error
+                            code:(NSString *)code {
+    NSMutableDictionary *payload = [@{
+        @"code": code,
+        @"message": error.localizedDescription ?: @"Unknown error",
+        @"nativeCode": @(error.code),
+    } mutableCopy];
+    if (region) payload[@"region"] = region;
+    if (error.domain) payload[@"domain"] = error.domain;
+    [self sendEventWithName:eventName body:payload];
 }
 
 // Kalman filter — identical algorithm to the Android implementation.

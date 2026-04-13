@@ -25,6 +25,9 @@ jobs:
       - name: Setup
         uses: ./.github/actions/setup
 
+      - name: Run tests
+        run: yarn test --runInBand
+
       - name: Build library
         run: yarn prepare
 

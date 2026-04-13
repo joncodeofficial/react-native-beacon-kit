@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import type {
   BeaconRegion,
   BeaconScanConfig,
+  BeaconFailureEvent,
   BeaconsRangedEvent,
   RegionStateChangedEvent,
 } from '../index';
@@ -274,6 +275,51 @@ describe('Beacon', () => {
 
       expect(firstCallback).toHaveBeenCalledTimes(1);
       expect(secondCallback).toHaveBeenCalledTimes(2);
+    });
+
+    it('delivers ranging failure events through the public subscription API', () => {
+      const mockNativeModule = getMockNativeModule();
+      const callback = jest.fn<(event: BeaconFailureEvent) => void>();
+      const event: BeaconFailureEvent = {
+        region,
+        code: 'RANGING_ERROR',
+        message: 'Bluetooth is off',
+        nativeCode: 42,
+        domain: 'CoreLocation',
+      };
+
+      const subscription = Beacon.onRangingFailed(callback);
+
+      emitMockEvent('onRangingFailed', event);
+
+      expect(callback).toHaveBeenCalledWith(event);
+      expect(mockNativeModule.addListener).toHaveBeenCalledWith(
+        'onRangingFailed'
+      );
+
+      subscription.remove();
+      emitMockEvent('onRangingFailed', event);
+
+      expect(callback).toHaveBeenCalledTimes(1);
+      expect(mockNativeModule.removeListeners).toHaveBeenCalledWith(1);
+    });
+
+    it('delivers monitoring failure events through the public subscription API', () => {
+      const mockNativeModule = getMockNativeModule();
+      const callback = jest.fn<(event: BeaconFailureEvent) => void>();
+      const event: BeaconFailureEvent = {
+        region,
+        code: 'MONITORING_ERROR',
+        message: 'Location permission was revoked',
+      };
+
+      Beacon.onMonitoringFailed(callback);
+      emitMockEvent('onMonitoringFailed', event);
+
+      expect(callback).toHaveBeenCalledWith(event);
+      expect(mockNativeModule.addListener).toHaveBeenCalledWith(
+        'onMonitoringFailed'
+      );
     });
   });
 });
