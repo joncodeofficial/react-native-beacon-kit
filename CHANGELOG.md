@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.1](https://github.com/joncodeofficial/react-native-beacon-kit/compare/v0.3.0...v0.3.1) (2026-04-13)
+
+### Bug Fixes
+
+* add POST_NOTIFICATIONS permission for foreground service notifications on Android 13+ ([d1f2557](https://github.com/joncodeofficial/react-native-beacon-kit/commit/d1f25573c096ce23fdb9103eb41b11a6b0b20032))
+
 ## [0.3.0](https://github.com/joncodeofficial/react-native-beacon-kit/compare/v0.2.0...v0.3.0) (2026-04-12)
 
 ### Features
