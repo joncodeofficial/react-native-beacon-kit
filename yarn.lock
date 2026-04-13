@@ -4138,16 +4138,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/react-test-renderer@npm:^19":
-  version: 19.1.0
-  resolution: "@types/react-test-renderer@npm:19.1.0"
-  dependencies:
-    "@types/react": "npm:*"
-  checksum: 10c0/799654e430df10aeaf267d71507fb64ec151359ead7e3774111bfd4abce7e0911dba461811195c06c22a6d17496ea92537d3185320ff4112fe29954cad1b9152
-  languageName: node
-  linkType: hard
-
-"@types/react@npm:*, @types/react@npm:^19.2.0":
+"@types/react@npm:^19.2.0":
   version: 19.2.14
   resolution: "@types/react@npm:19.2.14"
   dependencies:
@@ -11875,13 +11866,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"react-is@npm:^19.2.0":
-  version: 19.2.5
-  resolution: "react-is@npm:19.2.5"
-  checksum: 10c0/58c28ab2f7f868f9836c728fa164a16dcf20246ab84a3ae6a09e617b0e4d9bbb3acdddfdc40452f0134d27b121d3359227602a050c0be554cb20069cb52a67f4
-  languageName: node
-  linkType: hard
-
 "react-native-beacon-example@workspace:example":
   version: 0.0.0-use.local
   resolution: "react-native-beacon-example@workspace:example"
@@ -11928,7 +11912,6 @@ __metadata:
     "@semantic-release/release-notes-generator": "npm:^14.1.0"
     "@testing-library/react-native": "npm:^13.3.3"
     "@types/react": "npm:^19.2.0"
-    "@types/react-test-renderer": "npm:^19"
     commitlint: "npm:^20.5.0"
     del-cli: "npm:^7.0.0"
     eslint: "npm:^9.39.4"
@@ -11942,7 +11925,6 @@ __metadata:
     react-native: "npm:0.83.0"
     react-native-builder-bob: "npm:^0.41.0"
     react-native-web: "npm:~0.21.1"
-    react-test-renderer: "npm:19.2.0"
     semantic-release: "npm:^25.0.3"
     turbo: "npm:^2.8.21"
     typescript: "npm:^6.0.2"
@@ -12075,18 +12057,6 @@ __metadata:
   version: 0.18.0
   resolution: "react-refresh@npm:0.18.0"
   checksum: 10c0/34a262f7fd803433a534f50deb27a148112a81adcae440c7d1cbae7ef14d21ea8f2b3d783e858cb7698968183b77755a38b4d4b5b1d79b4f4689c2f6d358fff2
-  languageName: node
-  linkType: hard
-
-"react-test-renderer@npm:19.2.0":
-  version: 19.2.0
-  resolution: "react-test-renderer@npm:19.2.0"
-  dependencies:
-    react-is: "npm:^19.2.0"
-    scheduler: "npm:^0.27.0"
-  peerDependencies:
-    react: ^19.2.0
-  checksum: 10c0/cc116b908489316f06881bf7392c5fad4b5f66be42d2f04788f4179a19e86674d54f1006b33fe9eba28bde6edb4cb38764ab75b416f28d02e0182c5552c97551
   languageName: node
   linkType: hard
 
