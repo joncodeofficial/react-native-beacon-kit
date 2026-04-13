@@ -228,6 +228,46 @@ Returns:
 - `start()`
 - `stop()`
 
+Example:
+
+```ts
+import { useCallback } from 'react';
+import { Button, Text, View } from 'react-native';
+import Beacon, { useBeaconRanging } from 'react-native-beacon-kit';
+
+const region = {
+  identifier: 'warehouse',
+  uuid: 'FDA50693-A4E2-4FB1-AFCF-C6EB07647825',
+};
+
+function RangingScreen() {
+  const { beacons, error, isActive, start, stop } = useBeaconRanging({
+    region,
+  });
+
+  const handleStart = useCallback(async () => {
+    await requestPermissions();
+    Beacon.configure({
+      scanPeriod: 1100,
+      backgroundScanPeriod: 10000,
+      foregroundService: true,
+    });
+    await start();
+  }, [start]);
+
+  return (
+    <View>
+      <Text>Beacons: {beacons.length}</Text>
+      {error ? <Text>{error.message}</Text> : null}
+      <Button
+        title={isActive ? 'Stop ranging' : 'Start ranging'}
+        onPress={isActive ? stop : handleStart}
+      />
+    </View>
+  );
+}
+```
+
 ### `useBeaconMonitoring({ region, autoStart?, stopOnUnmount? })`
 
 Returns:
@@ -240,6 +280,42 @@ Returns:
 - `clearError()`
 - `start()`
 - `stop()`
+
+Example:
+
+```ts
+import { useEffect } from 'react';
+import { Button, Text, View } from 'react-native';
+import { useBeaconMonitoring } from 'react-native-beacon-kit';
+
+const region = {
+  identifier: 'entrance-zone',
+  uuid: 'FDA50693-A4E2-4FB1-AFCF-C6EB07647825',
+};
+
+function MonitoringScreen() {
+  const { regionState, error, isActive, start, stop } = useBeaconMonitoring({
+    region,
+  });
+
+  useEffect(() => {
+    if (regionState === 'inside') {
+      console.log('User entered the region');
+    }
+  }, [regionState]);
+
+  return (
+    <View>
+      <Text>State: {regionState}</Text>
+      {error ? <Text>{error.message}</Text> : null}
+      <Button
+        title={isActive ? 'Stop monitoring' : 'Start monitoring'}
+        onPress={isActive ? stop : start}
+      />
+    </View>
+  );
+}
+```
 
 ### `useMonitorThenRange({ region, autoStart?, stopOnUnmount? })`
 
@@ -257,6 +333,51 @@ Returns:
 - `clearError()`
 - `start()`
 - `stop()`
+
+Example:
+
+```ts
+import { Button, FlatList, Text, View } from 'react-native';
+import { useMonitorThenRange } from 'react-native-beacon-kit';
+
+const region = {
+  identifier: 'store-zone',
+  uuid: 'FDA50693-A4E2-4FB1-AFCF-C6EB07647825',
+};
+
+function StoreExperience() {
+  const {
+    beacons,
+    regionState,
+    isActive,
+    isRanging,
+    error,
+    start,
+    stop,
+  } = useMonitorThenRange({ region });
+
+  return (
+    <View>
+      <Text>Region: {regionState}</Text>
+      <Text>Ranging active: {isRanging ? 'yes' : 'no'}</Text>
+      {error ? <Text>{error.message}</Text> : null}
+      <Button
+        title={isActive ? 'Stop workflow' : 'Start workflow'}
+        onPress={isActive ? stop : start}
+      />
+      <FlatList
+        data={beacons}
+        keyExtractor={(item) => `${item.uuid}-${item.major}-${item.minor}`}
+        renderItem={({ item }) => (
+          <Text>
+            {item.major}/{item.minor} - {item.distance.toFixed(2)} m
+          </Text>
+        )}
+      />
+    </View>
+  );
+}
+```
 
 ### Low-level API
 
