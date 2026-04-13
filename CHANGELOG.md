@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.0](https://github.com/joncodeofficial/react-native-beacon-kit/compare/v0.3.1...v0.4.0) (2026-04-13)
+
+### Features
+
+* guard startRanging/startMonitoring conflict, add getRangedRegions/getMonitoredRegions, restructure example ([2e83c28](https://github.com/joncodeofficial/react-native-beacon-kit/commit/2e83c28146b5c3ee6effedd056bfe394bccd6dcd))
+
 ## [0.3.1](https://github.com/joncodeofficial/react-native-beacon-kit/compare/v0.3.0...v0.3.1) (2026-04-13)
 
 ### Bug Fixes
