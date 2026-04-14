@@ -1,19 +1,19 @@
 # react-native-beacon-kit
 
-iBeacon / AltBeacon library for React Native built on New Architecture (TurboModules + JSI).
-Real background scanning on Android via foreground service — what other libraries promised but never delivered.
+iBeacon and AltBeacon for React Native, built on New Architecture (TurboModules + JSI) with real Android background scanning support.
 
-> **Platform support:** Android and iOS fully supported.
+> **Platform support:** Android and iOS supported.
 
 ## Features
 
-- New Architecture (TurboModules + JSI) — no legacy bridge
-- Real background scanning on Android via foreground service
-- Background region monitoring on iOS (entry/exit events with ~10s ranging bursts)
-- iBeacon + AltBeacon support (~85% of the beacon market)
-- Kalman filter for stable distance readings (optional)
+- Hooks-first API for React apps
+- Low-level imperative API for advanced orchestration
+- Real Android background scanning via foreground service
+- iOS region monitoring with ranging handoff
+- iBeacon and AltBeacon support
+- Optional Kalman filter for more stable distance readings
 - Configurable scan intervals
-- Does not request permissions — respects your app's UX flow
+- Does not request permissions for you
 
 ## Installation
 
@@ -21,115 +21,50 @@ Real background scanning on Android via foreground service — what other librar
 npm install react-native-beacon-kit
 ```
 
-### Android permissions
+## Quick Start
 
-All required permissions are automatically merged into your app's `AndroidManifest.xml` via autolinking — no manual changes needed for React Native CLI or Expo bare workflow.
+If you are building a React screen, start with the hooks API.
 
-**Expo managed workflow** — declare permissions explicitly in `app.json`:
-
-```json
-{
-  "expo": {
-    "android": {
-      "permissions": [
-        "android.permission.ACCESS_FINE_LOCATION",
-        "android.permission.ACCESS_BACKGROUND_LOCATION",
-        "android.permission.BLUETOOTH_SCAN",
-        "android.permission.BLUETOOTH_CONNECT",
-        "android.permission.FOREGROUND_SERVICE",
-        "android.permission.FOREGROUND_SERVICE_LOCATION",
-        "android.permission.POST_NOTIFICATIONS"
-      ]
-    }
-  }
-}
-```
-
-Permissions are declared but not requested by the library — use [react-native-permissions](https://github.com/zoontek/react-native-permissions) to request them at runtime before calling any scanning method.
-
-#### Android permissions checklist
-
-| Permission | Why | When required |
-|---|---|---|
-| `ACCESS_FINE_LOCATION` | BLE scanning requires location | Always |
-| `ACCESS_BACKGROUND_LOCATION` | BLE scanning with screen off | Android 10+ |
-| `BLUETOOTH_SCAN` | BLE radio access | Android 12+ |
-| `BLUETOOTH_CONNECT` | Connect to BLE devices | Android 12+ |
-| `FOREGROUND_SERVICE` | Persistent notification | Android 8+ |
-| `FOREGROUND_SERVICE_LOCATION` | Location-type foreground service | Android 14+ |
-| `POST_NOTIFICATIONS` | Show foreground service notification | Android 13+ |
-
-**`POST_NOTIFICATIONS` (Android 13+/SDK 33):** Without this permission, the foreground service notification is silently suppressed. On some OEMs this causes the foreground service itself to be killed. Request it at runtime alongside your other permissions:
-
-```ts
-const permissions = [
-  PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
-];
-
-if (Platform.Version >= 31) {
-  permissions.push(PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN);
-  permissions.push(PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT);
-}
-if (Platform.Version >= 33) {
-  permissions.push(PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS);
-}
-```
-
-**`ACCESS_BACKGROUND_LOCATION` must be requested separately at runtime.** Android rejects it when bundled with other permissions in the same `requestMultiple()` call — it must be a separate `request()` after `ACCESS_FINE_LOCATION` is granted. This is the most common reason background scanning silently stops working.
-
-**Expo + `BLUETOOTH_SCAN` flag:** The Expo managed workflow adds `BLUETOOTH_SCAN` with `android:usesPermissionFlags="neverForLocation"` by default, which **blocks beacon scanning** (beacon scanning requires location). Remove this flag with a config plugin:
-
-```js
-// app.config.js
-const { withAndroidManifest } = require('@expo/config-plugins');
-
-const withBleScanPermissionFix = (config) =>
-  withAndroidManifest(config, (config) => {
-    const permissions = config.modResults.manifest['uses-permission'] || [];
-    permissions.forEach((perm) => {
-      if (perm?.$?.['android:name'] === 'android.permission.BLUETOOTH_SCAN') {
-        delete perm.$['android:usesPermissionFlags'];
-      }
-    });
-    return config;
-  });
-
-module.exports = withBleScanPermissionFix({ /* your config */ });
-```
-
-## Usage
-
-> **Recommended for React apps:** use the hooks API. It abstracts listener setup, React state, error state, and the correct start/stop flow. The imperative `Beacon.*` methods remain available as a low-level API for advanced cases, custom orchestration, or non-hook code.
-
-Choose the hook that matches your workflow:
+### Which hook should I use?
 
 | Hook | Use it when | What it owns |
 |---|---|---|
 | `useBeaconRanging({ region })` | You want nearby beacon readings, RSSI, and distance | Listeners, `beacons`, error state, and ranging `start()` / `stop()` |
 | `useBeaconMonitoring({ region })` | You only need `inside` / `outside` region state | Listeners, `regionState`, error state, and monitoring `start()` / `stop()` |
-| `useMonitorThenRange({ region })` | You want battery-friendly monitoring that turns on ranging only while inside a region | Monitoring + ranging coordination, listeners, state, errors, and workflow `start()` / `stop()` |
-
-What the hooks do not do:
-
-- They do not request permissions for you.
-- They do not call `Beacon.configure()` for you.
-- They do not replace the low-level API for highly custom orchestration.
+| `useMonitorThenRange({ region })` | You want monitoring to wake the workflow and ranging only while inside the region | Monitoring + ranging coordination, listeners, state, errors, and workflow `start()` / `stop()` |
 
 ### Required call order
 
-The following order is mandatory on Android, especially on SDK 34+:
+This order matters on Android, especially on SDK 34+:
 
-```
+```text
 1. Mount the hook (or register listeners manually if using the low-level API)
-2. Request permissions (await all; ACCESS_BACKGROUND_LOCATION separately)
-3. Beacon.configure()  — after permissions on SDK 34+
-4. Call `start()` from the hook result  OR  call `Beacon.startRanging(region)` / `Beacon.startMonitoring(region)`
-   ↑ ranging and monitoring must not run on the same region simultaneously — see Ranging vs Monitoring below
+2. Request permissions
+   - request ACCESS_BACKGROUND_LOCATION separately
+3. Call Beacon.configure()
+   - after permissions are granted on SDK 34+
+4. Call hook.start()
+   - or Beacon.startRanging(region) / Beacon.startMonitoring(region) if using the low-level API
 ```
 
-On SDK 34+, Android enforces permission checks when a foreground service is involved. Calling `configure({ foregroundService: true })` before permissions are granted will throw a `SecurityException` on fresh installs. On SDK ≤ 33 this appeared to work because permissions were pre-granted from previous installs.
+On Android SDK 34+, calling `configure({ foregroundService: true })` before permissions are granted can throw a `SecurityException` on fresh installs.
 
-### Hook example
+### What hooks do and do not do
+
+Hooks handle:
+
+- listener setup and cleanup
+- React state
+- failure state
+- start/stop orchestration
+
+Hooks do not handle:
+
+- requesting permissions
+- calling `Beacon.configure()`
+- highly custom multi-region orchestration
+
+### Minimal hook example
 
 ```ts
 import { useCallback } from 'react';
@@ -192,14 +127,14 @@ function MyComponent() {
 
 ### Error handling semantics
 
-The library reports failures through two different channels:
+The library reports failures through two channels:
 
-- **Promise rejection** from `startRanging()` / `startMonitoring()` or hook `start()` / `stop()` for **immediate call-time failures** such as invalid arguments, `RANGING_MONITORING_CONFLICT`, or platform/setup errors detected while starting.
-- **`onRangingFailed()` / `onMonitoringFailed()` events** for **runtime or asynchronous native failures** that occur after the operation has already started.
+- Promise rejection from `start()` / `stop()` or `startRanging()` / `startMonitoring()` for immediate call-time failures
+- `onRangingFailed()` / `onMonitoringFailed()` for runtime or asynchronous native failures
 
-When using hooks, the latest failure is also exposed via the hook's `error` field.
+When you use hooks, runtime failures are already surfaced through the hook's `error` field.
 
-Use both:
+For hook users, the normal pattern is:
 
 ```ts
 const { error, start } = useBeaconMonitoring({ region });
@@ -208,26 +143,33 @@ try {
   await start();
 } catch (error) {
   // Immediate failure while starting
-  console.warn('[beacon] hook start failed', error);
+  console.warn('[beacon] start failed', error);
 }
 
-const sub = Beacon.onMonitoringFailed((event) => {
-  // Failure reported later by the native layer while monitoring is active
-  console.warn('[beacon] runtime monitoring failure', event.code, event.message);
-});
+if (error) {
+  // Runtime or asynchronous failure already exposed by the hook
+  console.warn('[beacon] monitoring error', error.code, error.message);
+}
 ```
+
+Use `Beacon.onRangingFailed()` / `Beacon.onMonitoringFailed()` directly when you are working with the low-level API or building custom orchestration outside the hooks.
 
 ## API
 
 ### Hooks API
 
-The hooks API is the recommended React interface. It handles event subscriptions, React state, error state, and start/stop orchestration for you.
+The hooks API is the recommended React interface.
 
-The hooks intentionally sit above the low-level scanner API:
+All three hooks accept:
 
-- Your app is still responsible for requesting permissions in the right UX moment.
-- Your app is still responsible for calling `Beacon.configure()` after permissions are granted.
-- The hooks are focused on component-level beacon state and lifecycle, not global app setup.
+- `region`: beacon region to target
+- `autoStart?`: automatically call `start()` when the hook mounts
+- `stopOnUnmount?`: automatically stop the active operation when the component unmounts
+
+Default behavior:
+
+- `autoStart = false`
+- `stopOnUnmount = true`
 
 ### `useBeaconRanging({ region, autoStart?, stopOnUnmount? })`
 
@@ -261,11 +203,13 @@ function RangingScreen() {
 
   const handleStart = useCallback(async () => {
     await requestPermissions();
+
     Beacon.configure({
       scanPeriod: 1100,
       backgroundScanPeriod: 10000,
       foregroundService: true,
     });
+
     await start();
   }, [start]);
 
@@ -298,9 +242,9 @@ Returns:
 Example:
 
 ```ts
-import { useEffect } from 'react';
+import { useCallback, useEffect } from 'react';
 import { Button, Text, View } from 'react-native';
-import { useBeaconMonitoring } from 'react-native-beacon-kit';
+import Beacon, { useBeaconMonitoring } from 'react-native-beacon-kit';
 
 const region = {
   identifier: 'entrance-zone',
@@ -311,6 +255,12 @@ function MonitoringScreen() {
   const { regionState, error, isActive, start, stop } = useBeaconMonitoring({
     region,
   });
+
+  const handleStart = useCallback(async () => {
+    await requestPermissions();
+    Beacon.configure({});
+    await start();
+  }, [start]);
 
   useEffect(() => {
     if (regionState === 'inside') {
@@ -324,7 +274,7 @@ function MonitoringScreen() {
       {error ? <Text>{error.message}</Text> : null}
       <Button
         title={isActive ? 'Stop monitoring' : 'Start monitoring'}
-        onPress={isActive ? stop : start}
+        onPress={isActive ? stop : handleStart}
       />
     </View>
   );
@@ -333,7 +283,7 @@ function MonitoringScreen() {
 
 ### `useMonitorThenRange({ region, autoStart?, stopOnUnmount? })`
 
-Recommended when you want monitoring to wake the workflow and ranging to activate only while the user is inside the region.
+Use this when you want battery-friendly monitoring that turns on ranging only while the device is inside the region.
 
 Returns:
 
@@ -351,8 +301,9 @@ Returns:
 Example:
 
 ```ts
+import { useCallback } from 'react';
 import { Button, FlatList, Text, View } from 'react-native';
-import { useMonitorThenRange } from 'react-native-beacon-kit';
+import Beacon, { useMonitorThenRange } from 'react-native-beacon-kit';
 
 const region = {
   identifier: 'store-zone',
@@ -370,6 +321,15 @@ function StoreExperience() {
     stop,
   } = useMonitorThenRange({ region });
 
+  const handleStart = useCallback(async () => {
+    await requestPermissions();
+    Beacon.configure({
+      foregroundService: true,
+      backgroundScanPeriod: 10000,
+    });
+    await start();
+  }, [start]);
+
   return (
     <View>
       <Text>Region: {regionState}</Text>
@@ -377,7 +337,7 @@ function StoreExperience() {
       {error ? <Text>{error.message}</Text> : null}
       <Button
         title={isActive ? 'Stop workflow' : 'Start workflow'}
-        onPress={isActive ? stop : start}
+        onPress={isActive ? stop : handleStart}
       />
       <FlatList
         data={beacons}
@@ -395,104 +355,101 @@ function StoreExperience() {
 
 ### Low-level API
 
-The imperative `Beacon.*` API is still supported and powers the hooks internally. Use it when you need custom orchestration, integration with existing imperative code, or behavior that doesn't map cleanly to a hook.
+The imperative `Beacon.*` API remains available for advanced use cases, non-React flows, or custom orchestration that does not map cleanly to a hook.
 
 ### `configure(config)`
 
-Call after permissions are granted, before starting any scan. All fields are optional.
+Call after permissions are granted and before starting a scan. All fields are optional.
 
-> **SDK 34+ requirement:** `configure({ foregroundService: true })` must be called _after_ all required permissions are granted. On SDK 34+, Android enforces permission checks when enabling a foreground service — calling `configure()` before permissions are granted causes a `SecurityException` on fresh installs.
+> **SDK 34+ requirement:** `configure({ foregroundService: true })` must be called after permissions are granted.
 
 ```ts
 Beacon.configure({
-  scanPeriod?: number,           // foreground scan period in ms (default: 10000)
-  backgroundScanPeriod?: number, // background scan period in ms (default: 10000)
-  betweenScanPeriod?: number,    // rest between scans in ms (default: 0)
-  foregroundService?: boolean,   // enable real background scanning (default: false)
+  scanPeriod?: number,
+  backgroundScanPeriod?: number,
+  betweenScanPeriod?: number,
+  foregroundService?: boolean,
   foregroundServiceNotification?: {
-    title?: string,   // notification title (default: 'Beacon')
-    text?: string,    // notification body  (default: 'Scanning for beacons...')
+    title?: string,
+    text?: string,
   },
   kalmanFilter?: {
     enabled: boolean,
-    q?: number,   // process noise — how much you trust movement (default: 0.008)
-    r?: number,   // measurement noise — how much you trust RSSI (default: 0.1)
+    q?: number,
+    r?: number,
   },
-  aggressiveBackground?: boolean, // enable aggressive OEM mode (default: false) — see below
+  aggressiveBackground?: boolean,
 });
 ```
 
-`configure()` can be called while a scan is already running — updated scan periods take effect immediately.
+Key fields:
 
-**Foreground vs background scan periods:** `scanPeriod` controls how long the BLE radio is on when the app is in the foreground (screen on, app active). `backgroundScanPeriod` controls the same when the app is in the background (screen off). The library **automatically switches** between these two periods based on Android's Activity lifecycle — no code required on the caller side. You can confirm this in logcat: `set scan intervals received` fires at the exact moment the screen turns off.
+- `scanPeriod`: active foreground scan window in ms
+- `backgroundScanPeriod`: active background scan window in ms
+- `betweenScanPeriod`: rest period between scans in ms
+- `foregroundService`: enables real Android background scanning
+- `aggressiveBackground`: Android-only fallback for problematic OEMs; keep off unless you have verified that you need it
 
 Recommended defaults:
 
 ```ts
 Beacon.configure({
-  scanPeriod: 1100,            // foreground: fast updates, no throttle risk
-  backgroundScanPeriod: 10000, // background: safe from Android's 5-in-30s throttle
+  scanPeriod: 1100,
+  backgroundScanPeriod: 10000,
   betweenScanPeriod: 0,
 });
 ```
 
-**`scanPeriod` vs `betweenScanPeriod`**
+`configure()` can also be called while scanning is already running; updated intervals take effect immediately.
 
-`scanPeriod` is how long the BLE radio is on and detecting. `betweenScanPeriod` is how long it rests before the next scan. Beacons are reported once at the end of each active period.
+#### Scan interval notes
 
-```
+`scanPeriod` is how long the BLE radio is actively scanning. `betweenScanPeriod` is how long it rests before the next scan cycle.
+
+```text
 |←── scanPeriod ──→|←── betweenScanPeriod ──→|←── scanPeriod ──→|
       radio ON              radio OFF                radio ON
 ```
 
-`betweenScanPeriod: 0` means continuous scanning. Adding a rest period saves battery — `scanPeriod: 5000, betweenScanPeriod: 3000` and `scanPeriod: 8000, betweenScanPeriod: 0` both update every ~8s, but the first uses less power because the radio is off for 3s each cycle.
+- `betweenScanPeriod: 0` means continuous scanning
+- longer rest periods save battery
+- if your beacons advertise slowly, your scan window must still be long enough to catch them reliably
 
-> **Choosing `scanPeriod`:** The scan window must cover at least 2–3 advertising intervals to reliably detect a beacon. Most beacons advertise every 100ms–1000ms. If your beacons advertise at 1000ms (e.g. Moko M2 in battery-saving mode), use `scanPeriod: 3000` minimum — a 1.1s window will miss ~30–40% of scan cycles.
-
-| Use case | scanPeriod | backgroundScanPeriod | betweenScanPeriod |
-|---|---|---|---|
-| Real-time foreground positioning | 1100 | 10000 | 0 |
-| Standard indoor navigation | 1100 | 10000 | 0 |
-| Background zone detection | 1100 | 10000 | 10000 |
-| Battery-sensitive background | 1100 | 10000 | 30000 |
-
-> **Android BLE scan throttle:** Android throttles BLE scanning if an app accumulates more than 5 scan starts in any 30-second window. **This applies to background/Doze scanning only.** In the foreground, `longScanForcingEnabled` (enabled automatically) makes the scanner run continuously without restarting — so `scanPeriod: 1100` in the foreground carries no throttle risk. For background scanning, use `backgroundScanPeriod >= 10 000ms` to avoid the throttle.
+If your beacons advertise every ~1000ms, use a scan window closer to `3000ms` rather than `1100ms`.
 
 ### `checkPermissions(): Promise<boolean>`
 
-Returns `true` if all required permissions are granted. Does not request them.
+Returns `true` if all required permissions are already granted. Does not request them.
 
 ### `startRanging(region) / stopRanging(region)`
 
-Detects nearby beacons with RSSI and distance. Results are delivered once per `scanPeriod` (default: every 10s).
+Detects nearby beacons with RSSI and distance.
 
 ### `startMonitoring(region) / stopMonitoring(region)`
 
-Detects region entry/exit. Battery efficient — use to wake up ranging when the user enters a zone.
+Detects region entry and exit.
 
-### Ranging vs Monitoring — use one or the other per region
+### Ranging vs Monitoring
 
-> **⚠️ Do not call `startRanging` and `startMonitoring` on the same region simultaneously.** When both are active on the same region, the monitoring state machine interferes with the ranging scan cycle: `onRegionStateChanged` oscillates rapidly between `inside` and `outside`, and every transition to `outside` silences ranging until the next `inside` event. The symptom — intermittent zero results while standing next to beacons — is identical to a hardware or permission failure, making it extremely difficult to diagnose.
->
-> The library enforces this at runtime — calling either method while the other is already active on the same region identifier rejects the promise with a `RANGING_MONITORING_CONFLICT` error.
+Do not call `startRanging()` and `startMonitoring()` on the same region at the same time.
 
-These are distinct use cases with different APIs:
+The library enforces this at runtime and rejects with `RANGING_MONITORING_CONFLICT`.
 
-| Use case | API | Notes |
-|---|---|---|
-| Foreground RSSI / distance measurement | `startRanging` only | Fast updates, real-time positioning |
-| Background zone entry/exit detection | `startMonitoring` only | Battery efficient, wakes the app |
-| Background ranging after zone entry | `startMonitoring` → on `inside` → `startRanging` | Sequential, not simultaneous |
+| Use case | API |
+|---|---|
+| Foreground RSSI / distance measurement | `startRanging` only |
+| Background zone entry/exit detection | `startMonitoring` only |
+| Background ranging after zone entry | `startMonitoring` then start ranging after `inside` |
 
 ```ts
-// ❌ Do not combine on the same region — monitoring disrupts ranging
+// ❌ Do not combine on the same region simultaneously
 await Beacon.startRanging(region);
 await Beacon.startMonitoring(region);
 
-// ✅ Foreground positioning — ranging only
+// ✅ Foreground positioning
 await Beacon.startRanging(region);
 
-// ✅ Background ranging — monitoring triggers ranging on entry
+// ✅ Background monitoring that triggers ranging
 Beacon.startMonitoring(region);
 Beacon.onRegionStateChanged(({ state }) => {
   if (state === 'inside') Beacon.startRanging(region);
@@ -502,29 +459,28 @@ Beacon.onRegionStateChanged(({ state }) => {
 
 ### Region filtering
 
-`BeaconRegion` fields act as **hierarchical filters** in the underlying AltBeacon `Region` constructor. Omitting `major` or `minor` acts as a wildcard for that level:
+`BeaconRegion` fields behave as hierarchical filters:
 
 | Fields provided | What it matches |
 |---|---|
-| `uuid` only | All beacons with that UUID (any major/minor) |
-| `uuid` + `major` | All beacons with that UUID and major (any minor) |
-| `uuid` + `major` + `minor` | Only the exact beacon |
+| `uuid` only | All beacons with that UUID |
+| `uuid` + `major` | All beacons with that UUID and major |
+| `uuid` + `major` + `minor` | One exact beacon |
 
-The standard iBeacon deployment convention is:
-- **UUID** — identifies the project or fleet (same for all beacons)
-- **major** — identifies a group (e.g. a building floor)
-- **minor** — identifies a specific physical beacon
+Typical iBeacon convention:
 
-For most use cases, range with **UUID only** to detect your entire fleet:
+- `uuid`: project or fleet
+- `major`: group, zone, or floor
+- `minor`: specific beacon
+
+Example:
 
 ```ts
-// Detects ALL beacons in your fleet
 await Beacon.startRanging({
   identifier: 'my-fleet',
   uuid: 'FDA50693-A4E2-4FB1-AFCF-C6EB07647825',
 });
 
-// Detects only one specific beacon
 await Beacon.startRanging({
   identifier: 'beacon-101',
   uuid: 'FDA50693-A4E2-4FB1-AFCF-C6EB07647825',
@@ -533,41 +489,43 @@ await Beacon.startRanging({
 });
 ```
 
-### `onBeaconsRanged(callback)`
+### Events
+
+#### `onBeaconsRanged(callback)`
 
 ```ts
 const sub = Beacon.onBeaconsRanged((event) => {
-  // event.region  — the active region
-  // event.beacons — array of detected beacons
+  // event.region
+  // event.beacons
 });
 
-sub.remove(); // unsubscribe
+sub.remove();
 ```
 
-### `onRegionStateChanged(callback)`
+#### `onRegionStateChanged(callback)`
 
 ```ts
 const sub = Beacon.onRegionStateChanged((event) => {
-  // event.region — the region
-  // event.state  — 'inside' | 'outside'
+  // event.region
+  // event.state
 });
 ```
 
-### `onRangingFailed(callback)`
+#### `onRangingFailed(callback)`
 
 Emits a failure event when the native layer reports a runtime or asynchronous ranging error.
 
 ```ts
 const sub = Beacon.onRangingFailed((event) => {
-  // event.code       — stable error code, e.g. 'RANGING_ERROR'
-  // event.message    — human-readable message
-  // event.region     — region when available
-  // event.nativeCode — native platform error code when available
-  // event.domain     — iOS NSError domain when available
+  // event.code
+  // event.message
+  // event.region
+  // event.nativeCode
+  // event.domain
 });
 ```
 
-### `onMonitoringFailed(callback)`
+#### `onMonitoringFailed(callback)`
 
 Emits a failure event when the native layer reports a runtime or asynchronous monitoring error.
 
@@ -584,23 +542,31 @@ interface Beacon {
   uuid: string;
   major: number;
   minor: number;
-  rssi: number;          // signal strength in dBm
-  distance: number;      // estimated distance in meters (Kalman-filtered, or raw if filter disabled)
-  rawDistance: number;   // raw unfiltered distance from AltBeacon — useful for calibration/debugging
-  txPower: number;       // calibrated tx power of the beacon
-  /** @warning May be randomized on Android 10+ — use uuid + major + minor as unique identifier instead. */
+  rssi: number;
+  distance: number;
+  rawDistance: number;
+  txPower: number;
   macAddress: string;
   timestamp: number;
 }
 ```
 
-### `isIgnoringBatteryOptimizations(): Promise<boolean>`
+Notes:
 
-Returns `true` if the app is excluded from Android battery optimization. When not excluded, Doze mode throttles BLE scanning with the screen off — even with `foregroundService: true`.
+- `distance` is Kalman-filtered if the filter is enabled
+- `rawDistance` is the unfiltered value
+- `macAddress` may be randomized on Android 10+
+- on iOS, `macAddress` is always empty and `txPower` is always `-59`
 
-### `requestIgnoreBatteryOptimizations(): void`
+### Android utility methods
 
-Opens the Android system dialog asking the user to exclude this app from battery optimization. Call after `isIgnoringBatteryOptimizations()` returns `false`.
+#### `isIgnoringBatteryOptimizations(): Promise<boolean>`
+
+Returns `true` if the app is excluded from Android battery optimization.
+
+#### `requestIgnoreBatteryOptimizations(): void`
+
+Opens the Android system dialog asking the user to exclude the app from battery optimization.
 
 ```ts
 const exempt = await Beacon.isIgnoringBatteryOptimizations();
@@ -609,113 +575,89 @@ if (!exempt) {
 }
 ```
 
-### `openAutostartSettings(): void`
+#### `openAutostartSettings(): void`
 
 Opens the OEM-specific background permission settings page.
 
-- **Xiaomi / HyperOS** — opens the Autostart management screen directly (`AutoStartManagementActivity`)
-- **OPPO / Realme** — opens the privacy permissions screen
-- **Vivo** — opens the background startup manager
-- **Huawei** — opens the startup manager
-- **Samsung** — opens the battery settings screen
-- **Other OEMs** — falls back to the standard App Info screen
+- Xiaomi / HyperOS: Autostart management
+- OPPO / Realme: privacy permissions
+- Vivo: background startup manager
+- Huawei: startup manager
+- Samsung: battery settings
+- Other OEMs: standard App Info
 
 ```ts
-// Guide the user through OEM-specific background permissions
 Beacon.openAutostartSettings();
 ```
 
-> **⚠️ Do NOT call `openAutostartSettings()` during app initialization.** It navigates the user away from your app immediately, which triggers `IMPORTANCE_CHANGE` events that disrupt BLE scanning on Xiaomi/MIUI. Only call it from a deliberate user action — for example, an onboarding button or an in-app prompt. Show the user a dialog explaining what they are about to do before calling it.
+Do not call `openAutostartSettings()` during app initialization. Call it only from a user-initiated action.
 
-## Background scanning
+## Platform Setup
 
-Background scanning on Android requires a foreground service — a persistent notification the user can see. Enable it via `configure({ foregroundService: true })`.
+### Android permissions
 
-Without this, Android will kill the scanning process when the app goes to background. This is what most other beacon libraries for React Native never implemented.
+Required permissions are merged into `AndroidManifest.xml` automatically through autolinking for React Native CLI and Expo bare workflow.
 
-## Doze mode and screen-off scanning
+If you are using Expo managed workflow, declare permissions explicitly in `app.json`:
 
-The foreground service keeps the process alive, but **Android Doze mode** (triggered when the screen turns off) can still throttle BLE radio access. The library addresses this in three ways:
-
-1. **`SCAN_MODE_LOW_LATENCY`** — the library forces high-priority scan mode via `setBackgroundMode(false)`. OEM power managers (Xiaomi MIUI/HyperOS in particular) log `force suspend scan` for `LOW_POWER` scans on screen-off but treat `LOW_LATENCY` as an active high-priority scan that survives power restrictions.
-
-2. **Partial wake lock** — automatically acquired when `foregroundService: true` is set. This prevents the CPU from entering deep sleep so BLE callbacks keep firing with the screen off.
-
-3. **Battery optimization exemption** — Doze is further suppressed when the app is excluded from battery optimization. Check and request this at runtime:
-
-```ts
-const exempt = await Beacon.isIgnoringBatteryOptimizations();
-if (!exempt) {
-  Beacon.requestIgnoreBatteryOptimizations();
+```json
+{
+  "expo": {
+    "android": {
+      "permissions": [
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_BACKGROUND_LOCATION",
+        "android.permission.BLUETOOTH_SCAN",
+        "android.permission.BLUETOOTH_CONNECT",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_LOCATION",
+        "android.permission.POST_NOTIFICATIONS"
+      ]
+    }
+  }
 }
 ```
 
-> **OEM battery managers:** Samsung, Xiaomi, Huawei, OPPO, and others add their own battery optimization layers on top of standard Doze. The wake lock and battery optimization exemption address standard Android Doze; use `openAutostartSettings()` to deep-link users into the OEM-specific screen where they can grant the remaining permissions.
+The library declares permissions but does not request them. Use [react-native-permissions](https://github.com/zoontek/react-native-permissions) or your own runtime permission flow.
 
-## Xiaomi / HyperOS
+#### Android permission checklist
 
-Xiaomi devices running MIUI or HyperOS add extra restrictions on top of standard Doze that will stop BLE scanning with the screen off. All of the following are required simultaneously for reliable background scanning — missing any one will cause BLE to suspend ~20–30s after screen-off:
+| Permission | Why | When required |
+|---|---|---|
+| `ACCESS_FINE_LOCATION` | BLE scanning requires location | Always |
+| `ACCESS_BACKGROUND_LOCATION` | Background scanning | Android 10+ |
+| `BLUETOOTH_SCAN` | BLE radio access | Android 12+ |
+| `BLUETOOTH_CONNECT` | BLE device access | Android 12+ |
+| `FOREGROUND_SERVICE` | Persistent notification | Android 8+ |
+| `FOREGROUND_SERVICE_LOCATION` | Location foreground service | Android 14+ |
+| `POST_NOTIFICATIONS` | Foreground service notification | Android 13+ |
 
-| Required | How |
-|---|---|
-| `foregroundService: true` | In `Beacon.configure()` |
-| `aggressiveBackground: true` | In `Beacon.configure()` |
-| Battery optimization exempt | `requestIgnoreBatteryOptimizations()` after permissions resolve |
-| Autostart permission | `openAutostartSettings()` from a user-initiated action only |
+Important Android notes:
 
-```ts
-// After permissions are granted:
-const exempt = await Beacon.isIgnoringBatteryOptimizations();
-if (!exempt) {
-  Beacon.requestIgnoreBatteryOptimizations(); // system dialog
-}
+- `ACCESS_BACKGROUND_LOCATION` must be requested separately at runtime
+- on Android 13+, `POST_NOTIFICATIONS` should be requested at runtime too
+- on Expo managed workflow, remove `android:usesPermissionFlags="neverForLocation"` from `BLUETOOTH_SCAN` or beacon scanning will not work
 
-// From a user-initiated action only (NOT during app init — see openAutostartSettings warning):
-Beacon.openAutostartSettings();
+Expo config plugin example:
+
+```js
+const { withAndroidManifest } = require('@expo/config-plugins');
+
+const withBleScanPermissionFix = (config) =>
+  withAndroidManifest(config, (config) => {
+    const permissions = config.modResults.manifest['uses-permission'] || [];
+    permissions.forEach((perm) => {
+      if (perm?.$?.['android:name'] === 'android.permission.BLUETOOTH_SCAN') {
+        delete perm.$['android:usesPermissionFlags'];
+      }
+    });
+    return config;
+  });
+
+module.exports = withBleScanPermissionFix({ /* your config */ });
 ```
 
-Specific restrictions on Xiaomi/HyperOS:
-
-1. **Autostart** — MIUI suspends the BLE radio ~30s after screen-off if Autostart is not granted, regardless of foreground service or wake lock. This is the most common reason background scanning stops on Xiaomi.
-2. **Battery restriction** — MIUI's per-app battery mode must be set to **No restrictions** (not *Optimized* or *Restricted*).
-
-After `openAutostartSettings()` the user needs to:
-- Enable the **Autostart** toggle for the app
-- Go to **Settings > Apps > [App] > Battery** and select **No restrictions**
-
-There is no way to grant these permissions programmatically — the user must do it manually. Guide them with a dialog before calling `openAutostartSettings()` so they know what to look for.
-
-## Aggressive background mode
-
-Some OEM devices (Xiaomi/HyperOS, some Samsung and Huawei models) suspend BLE scanning ~20s after the screen turns off even when a foreground service is running. Enable `aggressiveBackground` to fight this:
-
-```ts
-Beacon.configure({
-  foregroundService: true,
-  aggressiveBackground: true,
-});
-```
-
-This enables three additional mechanisms:
-
-| Mechanism | What it does |
-|---|---|
-| **Scan watchdog** | Restarts all active ranging regions every 20s, resetting the OEM scan-suspend timer before it fires |
-| **PARTIAL_WAKE_LOCK** | Keeps the CPU awake so BLE scan callbacks fire reliably with the screen off |
-| **Forced LOW_LATENCY** | Sets `SCAN_MODE_LOW_LATENCY` permanently — prevents MIUI from downgrading to LOW_POWER, which it suspends more aggressively |
-
-**Default is `false`.** Only enable if you've confirmed that background scanning stops without it on your target device. These measures increase battery consumption.
-
-> **Note:** `aggressiveBackground` does not replace `requestIgnoreBatteryOptimizations()` or `openAutostartSettings()` — those are still needed on Xiaomi. Aggressive mode fights the BLE driver throttle; battery optimization and autostart are separate permission layers.
-
-## Platform notes
-
-### Android
-- Requires `ACCESS_BACKGROUND_LOCATION` for background scanning (Android 10+)
-- Requires `BLUETOOTH_SCAN` + `BLUETOOTH_CONNECT` (Android 12+)
-- Foreground service keeps scanning alive even when the app is killed
-
-### iOS
+### iOS setup
 
 Add to `Info.plist`:
 
@@ -726,66 +668,120 @@ Add to `Info.plist`:
 <string>This app uses your location to detect nearby beacons.</string>
 ```
 
-Enable **Location updates** background mode in Xcode → your target → Signing & Capabilities → Background Modes.
+Enable **Location updates** background mode in Xcode under your target's Background Modes capability.
 
-**Background ranging on iOS** works differently from Android. iOS does not support continuous background ranging — instead, use `startMonitoring()` to wake the app when the user enters a region, then start ranging from that callback. iOS gives ~10 seconds of execution time per region event.
+iOS background behavior is different from Android:
+
+- continuous background ranging is not supported
+- use `startMonitoring()` to wake the app
+- start ranging after the region event if you need the short execution window
 
 ```ts
-// Recommended iOS background pattern
 Beacon.startMonitoring({ identifier: 'my-region', uuid: '...' });
 
 const sub = Beacon.onRegionStateChanged(({ state }) => {
   if (state === 'inside') {
-    // iOS woke the app — start ranging for the ~10s window
     Beacon.startRanging({ identifier: 'my-region', uuid: '...' });
   }
 });
 ```
 
-**iOS-specific behaviour:**
-- `foregroundService`, `aggressiveBackground`, `scanPeriod`, `backgroundScanPeriod`, `betweenScanPeriod` are Android-only — silently ignored on iOS
-- `isIgnoringBatteryOptimizations()` always returns `true` on iOS
-- `requestIgnoreBatteryOptimizations()` and `openAutostartSettings()` are no-ops on iOS
-- `macAddress` is always an empty string — iOS does not expose MAC addresses (privacy restriction since iOS 13)
-- `txPower` is always `-59` — `CLBeacon` does not expose the raw tx power value
+iOS-specific behavior:
+
+- `foregroundService`, `aggressiveBackground`, `scanPeriod`, `backgroundScanPeriod`, and `betweenScanPeriod` are ignored
+- `isIgnoringBatteryOptimizations()` always returns `true`
+- `requestIgnoreBatteryOptimizations()` and `openAutostartSettings()` are no-ops
+- `macAddress` is always empty
+- `txPower` is always `-59`
+
+## Advanced Android Background Scanning
+
+### Foreground service
+
+Android background scanning requires `configure({ foregroundService: true })`.
+
+Without a foreground service, Android can kill scanning when the app goes to the background.
+
+### Doze and screen-off behavior
+
+Even with a foreground service, Android Doze and OEM power management can still reduce BLE reliability with the screen off.
+
+This library mitigates that through:
+
+1. high-priority scanning
+2. partial wake lock support when foreground service is enabled
+3. optional battery optimization exemption flow
+
+```ts
+const exempt = await Beacon.isIgnoringBatteryOptimizations();
+if (!exempt) {
+  Beacon.requestIgnoreBatteryOptimizations();
+}
+```
+
+### `aggressiveBackground`
+
+`aggressiveBackground` is an advanced Android-only option for problematic OEMs.
+
+It is:
+
+- off by default
+- not needed for most apps
+- worth enabling only if you have verified that screen-off scanning is still being suspended on your target hardware
+
+```ts
+Beacon.configure({
+  foregroundService: true,
+  aggressiveBackground: true,
+});
+```
+
+Tradeoff:
+
+- improves survivability on some OEMs
+- increases battery usage
+
+### Xiaomi / HyperOS
+
+Xiaomi and HyperOS devices often need extra manual setup beyond standard Android behavior.
+
+For reliable screen-off scanning on those devices, you may need all of:
+
+| Required | How |
+|---|---|
+| `foregroundService: true` | In `Beacon.configure()` |
+| `aggressiveBackground: true` | Only if testing shows it is needed |
+| Battery optimization exemption | `requestIgnoreBatteryOptimizations()` |
+| Autostart permission | `openAutostartSettings()` from a user action |
+
+After opening the OEM settings, the user may still need to:
+
+- enable **Autostart**
+- set battery mode to **No restrictions**
+
+This is an edge-case OEM section, not the normal setup path for every app.
 
 ## Troubleshooting
 
-### 0 beacons or intermittent detection after reinstall
-
-Two `BeaconService` instances may be competing for the BLE scanner. This happens when both the example app and your production app are installed on the same device. Results alternate between services or one silently starves the other — the symptom looks identical to a hardware or permission failure.
-
-Diagnose:
-```sh
-adb logcat -v time BeaconService:V *:S
-# If you see two different PIDs, you have competing instances
-```
-
-Fix:
-```sh
-adb shell am force-stop com.beacon.example
-adb uninstall com.beacon.example
-```
-
 ### `SecurityException` on fresh install (SDK 34+)
 
-`configure()` is being called before permissions resolve. Await `requestPermissions()` before calling `Beacon.configure()`. See [Required call order](#required-call-order).
+`configure()` is being called before permissions resolve. Await your permission flow first.
 
-### Ranging always returns 0 beacons despite beacons being nearby
+### Ranging always returns 0 beacons
 
-Check if `startMonitoring()` was previously called on the same region as `startRanging()`. If the conflict was introduced after this guard was added, the call will now reject with `RANGING_MONITORING_CONFLICT`. See [Ranging vs Monitoring](#ranging-vs-monitoring--use-one-or-the-other-per-region).
-
-### Scanning stops ~20–30s after screen off (Xiaomi/HyperOS)
-
-`aggressiveBackground: true` alone is not sufficient. See the [Xiaomi / HyperOS](#xiaomi--hyperos) section — all four items in the checklist are required simultaneously.
+Check whether ranging and monitoring were started simultaneously on the same region. That flow is unsupported and rejects with `RANGING_MONITORING_CONFLICT`.
 
 ### No foreground service notification on Android 13+
 
-Add `POST_NOTIFICATIONS` to your runtime permission request (requires `Platform.Version >= 33`) and to `app.json` / `AndroidManifest.xml`. Without this, the notification is silently suppressed and some OEMs will kill the foreground service.
+Add `POST_NOTIFICATIONS` to your runtime permission flow and manifest/app config.
 
-### `configure()` called twice at startup
+### Scanning stops after screen off on Xiaomi / HyperOS
 
-Visible in logcat as two `set scan intervals received` lines. Guard your async start function with a `ref`, not a state variable — state updates are batched and async, so they cannot prevent re-entrant calls within the same render cycle. A `ref` is synchronous:
+Review the [Xiaomi / HyperOS](#xiaomi--hyperos) section. `aggressiveBackground` alone is not always enough.
+
+### `configure()` appears to run twice at startup
+
+Guard your startup function with a ref, not state:
 
 ```ts
 const startingRef = useRef(false);
@@ -794,11 +790,30 @@ const start = useCallback(async () => {
   if (startingRef.current) return;
   startingRef.current = true;
   try {
-    // ... configure and startRanging
+    // request permissions
+    // Beacon.configure(...)
+    // await start()
   } finally {
-    startingRef.current = false; // always reset, even on error
+    startingRef.current = false;
   }
 }, []);
+```
+
+### 0 beacons or intermittent detection after reinstall
+
+If both the example app and your production app are installed on the same device, two services may compete for the scanner.
+
+Diagnose:
+
+```sh
+adb logcat -v time BeaconService:V *:S
+```
+
+Fix:
+
+```sh
+adb shell am force-stop com.beacon.example
+adb uninstall com.beacon.example
 ```
 
 ## License
