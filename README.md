@@ -21,6 +21,44 @@ iBeacon and AltBeacon for React Native, built on New Architecture (TurboModules 
 npm install react-native-beacon-kit
 ```
 
+### Expo managed workflow
+
+Recommended usage:
+
+```json
+{
+  "expo": {
+    "plugins": ["react-native-beacon-kit"]
+  }
+}
+```
+
+Optional iOS background location capability:
+
+```json
+{
+  "expo": {
+    "plugins": [
+      [
+        "react-native-beacon-kit",
+        {
+          "iosBackgroundLocation": true
+        }
+      ]
+    ]
+  }
+}
+```
+
+The Expo plugin:
+
+- adds the Android permissions used by the library
+- removes `neverForLocation` from `BLUETOOTH_SCAN`
+- adds the default iOS location usage strings
+- optionally adds `UIBackgroundModes = ["location"]` when `iosBackgroundLocation` is enabled
+
+The plugin does not request permissions at runtime.
+
 ## Quick Start
 
 If you are building a React screen, start with the hooks API.
@@ -76,7 +114,7 @@ const region = {
   uuid: 'FDA50693-A4E2-4FB1-AFCF-C6EB07647825',
 };
 
-function MyComponent() {
+const MyComponent = () => {
   const {
     beacons,
     error,
@@ -122,7 +160,7 @@ function MyComponent() {
       />
     </>
   );
-}
+};
 ```
 
 ### Error handling semantics
@@ -196,7 +234,7 @@ const region = {
   uuid: 'FDA50693-A4E2-4FB1-AFCF-C6EB07647825',
 };
 
-function RangingScreen() {
+const RangingScreen = () => {
   const { beacons, error, isActive, start, stop } = useBeaconRanging({
     region,
   });
@@ -223,7 +261,7 @@ function RangingScreen() {
       />
     </View>
   );
-}
+};
 ```
 
 ### `useBeaconMonitoring({ region, autoStart?, stopOnUnmount? })`
@@ -251,7 +289,7 @@ const region = {
   uuid: 'FDA50693-A4E2-4FB1-AFCF-C6EB07647825',
 };
 
-function MonitoringScreen() {
+const MonitoringScreen = () => {
   const { regionState, error, isActive, start, stop } = useBeaconMonitoring({
     region,
   });
@@ -278,7 +316,7 @@ function MonitoringScreen() {
       />
     </View>
   );
-}
+};
 ```
 
 ### `useMonitorThenRange({ region, autoStart?, stopOnUnmount? })`
@@ -310,7 +348,7 @@ const region = {
   uuid: 'FDA50693-A4E2-4FB1-AFCF-C6EB07647825',
 };
 
-function StoreExperience() {
+const StoreExperience = () => {
   const {
     beacons,
     regionState,
@@ -350,7 +388,7 @@ function StoreExperience() {
       />
     </View>
   );
-}
+};
 ```
 
 ### Low-level API
@@ -405,11 +443,6 @@ Beacon.configure({
 #### Scan interval notes
 
 `scanPeriod` is how long the BLE radio is actively scanning. `betweenScanPeriod` is how long it rests before the next scan cycle.
-
-```text
-|←── scanPeriod ──→|←── betweenScanPeriod ──→|←── scanPeriod ──→|
-      radio ON              radio OFF                radio ON
-```
 
 - `betweenScanPeriod: 0` means continuous scanning
 - longer rest periods save battery
@@ -594,26 +627,18 @@ Do not call `openAutostartSettings()` during app initialization. Call it only fr
 
 ## Platform Setup
 
+Use this section for platform-specific setup details after installation and quick start.
+
 ### Android permissions
 
 Required permissions are merged into `AndroidManifest.xml` automatically through autolinking for React Native CLI and Expo bare workflow.
 
-If you are using Expo managed workflow, declare permissions explicitly in `app.json`:
+If you are using Expo managed workflow, the recommended setup is the built-in Expo plugin:
 
 ```json
 {
   "expo": {
-    "android": {
-      "permissions": [
-        "android.permission.ACCESS_FINE_LOCATION",
-        "android.permission.ACCESS_BACKGROUND_LOCATION",
-        "android.permission.BLUETOOTH_SCAN",
-        "android.permission.BLUETOOTH_CONNECT",
-        "android.permission.FOREGROUND_SERVICE",
-        "android.permission.FOREGROUND_SERVICE_LOCATION",
-        "android.permission.POST_NOTIFICATIONS"
-      ]
-    }
+    "plugins": ["react-native-beacon-kit"]
   }
 }
 ```
@@ -636,30 +661,13 @@ Important Android notes:
 
 - `ACCESS_BACKGROUND_LOCATION` must be requested separately at runtime
 - on Android 13+, `POST_NOTIFICATIONS` should be requested at runtime too
-- on Expo managed workflow, remove `android:usesPermissionFlags="neverForLocation"` from `BLUETOOTH_SCAN` or beacon scanning will not work
-
-Expo config plugin example:
-
-```js
-const { withAndroidManifest } = require('@expo/config-plugins');
-
-const withBleScanPermissionFix = (config) =>
-  withAndroidManifest(config, (config) => {
-    const permissions = config.modResults.manifest['uses-permission'] || [];
-    permissions.forEach((perm) => {
-      if (perm?.$?.['android:name'] === 'android.permission.BLUETOOTH_SCAN') {
-        delete perm.$['android:usesPermissionFlags'];
-      }
-    });
-    return config;
-  });
-
-module.exports = withBleScanPermissionFix({ /* your config */ });
-```
+- on Expo managed workflow, the built-in plugin already removes `android:usesPermissionFlags="neverForLocation"` from `BLUETOOTH_SCAN`
 
 ### iOS setup
 
-Add to `Info.plist`:
+If you are using Expo managed workflow, see [Installation](#installation) for the built-in plugin setup.
+
+If you are configuring iOS manually, add to `Info.plist`:
 
 ```xml
 <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
