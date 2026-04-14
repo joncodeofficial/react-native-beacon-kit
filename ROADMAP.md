@@ -1,30 +1,72 @@
 # Roadmap
 
-## V1 — Android (complete)
+## Current status
 
-- [x] iBeacon + AltBeacon ranging and monitoring
-- [x] Real background scanning via foreground service (+ `aggressiveBackground` mode for OEM devices that suspend BLE scanning)
-- [x] Kalman filter for stable distance readings
+The library is already strong on the core React Native iBeacon / AltBeacon flow:
+
+- [x] Android ranging and monitoring
+- [x] iOS ranging and monitoring
+- [x] Real Android background scanning via foreground service
+- [x] `aggressiveBackground` fallback for restrictive OEMs
+- [x] Kalman filter
 - [x] Configurable scan intervals
-- [x] Permission check (no request — developer's responsibility)
+- [x] Permission check API
 - [x] New Architecture (TurboModules + JSI)
+- [x] Failure events: `onRangingFailed()` / `onMonitoringFailed()`
+- [x] Hooks-first React API:
+  - `useBeaconRanging()`
+  - `useBeaconMonitoring()`
+  - `useMonitorThenRange()`
+- [x] Region query helpers:
+  - `Beacon.getRangedRegions()`
+  - `Beacon.getMonitoredRegions()`
+- [x] JS API coverage
+- [x] Hook tests with `@testing-library/react-native`
+- [x] Tests running in CI and release workflows
+- [x] npm package published as `react-native-beacon-kit`
 
 ---
 
-## V2 — iOS + API improvements (planned)
+## Next priority: Reliability and validation
 
-### iOS
+This is the most important track before adding more surface area.
 
-- [x] `CLLocationManager` + `CLBeaconRegion` ranging and monitoring
-- [x] Background monitoring with ~10s ranging bursts on region entry
-- [x] Permissions: `NSLocationAlwaysAndWhenInUseUsageDescription`, `NSLocationWhenInUseUsageDescription`
-- [x] "Location updates" background mode in Xcode capabilities
-- [x] API mirrors Android exactly — JS code is platform-agnostic
+### Cross-platform confidence
+
+- [ ] Add iOS build validation in CI
+- [ ] Validate on real iPhone hardware
+- [ ] Verify Android permissions and behavior on Android 12, 13, and 14
+- [ ] Test with multiple beacon vendors:
+  - Estimote
+  - Kontakt.io
+  - Minew
+
+### Scanner and environment diagnostics
+
+- [ ] Add `Beacon.getScannerState()` or `Beacon.getEnvironmentState()`
+- [ ] Report actionable state such as:
+  - Bluetooth enabled / disabled
+  - Location services enabled / disabled
+  - Required permissions granted / missing
+  - Background permission granted / missing
+- [ ] Consider `onScannerStateChanged()` for apps that need to react to runtime changes
+
+### Test strategy
+
+- [x] Contract tests for the public JS API
+- [x] Hook behavior tests
+- [ ] Add stronger cross-platform confidence beyond JS contract tests
+- [ ] Add a documented real-device validation matrix for releases
+
+---
+
+## Next priority: Protocol expansion
 
 ### Eddystone-UID support
 
-Google's beacon format. Present in airports, enterprise, and modern retail deployments.
-No major/minor — uses `namespace` (10 bytes) + `instance` (6 bytes).
+This is the biggest missing capability at the protocol level.
+
+Target outcome:
 
 ```ts
 {
@@ -41,25 +83,36 @@ No major/minor — uses `namespace` (10 bytes) + `instance` (6 bytes).
 
 Work required:
 
-- Add `BeaconParser.EDDYSTONE_UID_LAYOUT` to `getOrCreateBeaconManager()`
-- Extend `Beacon` type — discriminated union `IBeacon | EddystoneBeacon` or optional fields
-- Update `BeaconRegion` to support Eddystone namespace filtering
-
-### API additions
-
-- [ ] Region-scoped ranging callback: `Beacon.onBeaconsRanged('zone-a', callback)`
-- [x] `Beacon.getRangedRegions()` / `Beacon.getMonitoredRegions()` — useful for cleanup on restart
-- [ ] Moving average filter as alternative to Kalman: `configure({ smoothing: { type: 'moving-average', window: 5 } })`
-- [ ] `Beacon.getNearestBeacon(beacons)` — returns closest beacon from a list
+- [ ] Add Eddystone parser support on Android
+- [ ] Design the public reading model first:
+  - discriminated union such as `IBeaconReading | EddystoneUidReading`
+  - avoid forcing Eddystone into the current `uuid / major / minor` shape
+- [ ] Update region/filter types to support Eddystone namespace and instance filtering
+- [ ] Document the platform story clearly:
+  - Android support expectations
+  - iOS limitations or alternative approach if parity is not possible
 
 ---
 
-## V3 — Positioning (planned)
+## API and core improvements
+
+These are useful, but below reliability and Eddystone.
+
+- [ ] Region-scoped subscription helpers such as `Beacon.onBeaconsRanged('zone-a', callback)`
+- [ ] Moving average filter as an alternative to Kalman
+- [ ] `Beacon.getNearestBeacon(beacons)`
+- [ ] `useNearestBeacon(region)`
+- [ ] `useBeaconMap(beaconMap)`
+- [x] Expo config plugin for automatic permission injection
+- [x] Full TypeScript strict mode across the library
+
+---
+
+## Longer-term ideas
 
 ### Trilateration
 
-Given 3+ beacons with known positions, estimate the user's (x, y) position.
-Requires the developer to provide a floor map with beacon coordinates.
+Given 3+ beacons with known positions, estimate the user's `(x, y)` location.
 
 ```ts
 const position = Beacon.estimatePosition(beacons, beaconMap);
@@ -68,7 +121,7 @@ const position = Beacon.estimatePosition(beacons, beaconMap);
 
 ### Zone detection
 
-Map beacon minor IDs to named zones. Fire an event when the user moves between zones.
+Map beacon identifiers to named zones and emit transitions between them.
 
 ```ts
 Beacon.configure({
@@ -85,16 +138,9 @@ Beacon.configure({
 });
 
 Beacon.onZoneChanged((event) => {
-  // event.zone — 'entrance' | 'hall-a' | ...
+  // event.zone
 });
 ```
-
-## V4 — Developer experience (planned)
-
-- [ ] `useNearestBeacon(region)` — hook that returns the single closest beacon in real time
-- [ ] `useBeaconMap(beaconMap)` — hook that maps beacon readings to named locations
-- [ ] Expo config plugin for automatic permission injection (`app.json` → native)
-- [ ] Full TypeScript strict mode across the library
 
 ---
 
@@ -102,6 +148,9 @@ Beacon.onZoneChanged((event) => {
 
 - [x] Remove debug `Log.d` calls
 - [x] Add `CHANGELOG.md`
-- [ ] Verify permissions on Android 12, 13, 14 (`BLUETOOTH_SCAN`, `POST_NOTIFICATIONS`, `FOREGROUND_SERVICE_LOCATION`)
-- [ ] Test with multiple beacon manufacturers (Estimote, Kontakt.io, Minew)
-- [x] Publish to npm as `react-native-beacon-kit`
+- [x] Run unit and hook tests in CI
+- [ ] Add iOS build validation in CI
+- [ ] Validate Android permission behavior on Android 12, 13, and 14
+- [ ] Validate on real iOS devices
+- [ ] Test with multiple beacon manufacturers
+- [ ] Maintain a documented hardware validation matrix for release confidence
