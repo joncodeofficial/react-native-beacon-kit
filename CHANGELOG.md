@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.7.2](https://github.com/joncodeofficial/react-native-beacon-kit/compare/v0.7.1...v0.7.2) (2026-04-17)
+
+### Bug Fixes
+
+* stabilize hook callbacks to prevent spurious stop/start cycles on re-render ([37cb42a](https://github.com/joncodeofficial/react-native-beacon-kit/commit/37cb42a1993b66aad7556a19a658fad219694105))
+
 ## [0.7.1](https://github.com/joncodeofficial/react-native-beacon-kit/compare/v0.7.0...v0.7.1) (2026-04-17)
 
 ### Bug Fixes
