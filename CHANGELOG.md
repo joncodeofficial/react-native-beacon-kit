@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.7.1](https://github.com/joncodeofficial/react-native-beacon-kit/compare/v0.7.0...v0.7.1) (2026-04-17)
+
+### Bug Fixes
+
+* update package.json for correct module exports and types paths ([f8bc2dd](https://github.com/joncodeofficial/react-native-beacon-kit/commit/f8bc2ddcf284702723fb95ee3b5812e61194493d))
+
 ## [0.7.0](https://github.com/joncodeofficial/react-native-beacon-kit/compare/v0.6.3...v0.7.0) (2026-04-14)
 
 ### Features
