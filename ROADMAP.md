@@ -94,6 +94,27 @@ Work required:
 
 ---
 
+## Mock Provider for testing
+
+Allows injecting fake beacons via code so developers can test UI logic without physical hardware.
+
+- [ ] Design a `MockBeaconProvider` or equivalent injection API
+- [ ] Support simulating ranging events with configurable RSSI and distance
+- [ ] Support simulating region enter/exit events
+- [ ] Document how to use it with Jest and `@testing-library/react-native`
+
+---
+
+## Documentation: background wake-up and state hydration
+
+The library supports background scanning, but there is no guide explaining what to do when the OS kills the app and a beacon event wakes it back up.
+
+- [ ] Write a guide covering the full background wake-up lifecycle on Android and iOS
+- [ ] Explain how to hydrate Redux or Zustand state when the app starts in background mode
+- [ ] Cover the `aggressiveBackground` path specifically and its edge cases
+
+---
+
 ## API and core improvements
 
 These are useful, but below reliability and Eddystone.
