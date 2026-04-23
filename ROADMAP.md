@@ -107,11 +107,33 @@ Allows injecting fake beacons via code so developers can test UI logic without p
 
 ## Documentation: background wake-up and state hydration
 
-The library supports background scanning, but there is no guide explaining what to do when the OS kills the app and a beacon event wakes it back up.
+The library supports background scanning, but there is no guide explaining what to do when the OS kills the app and a beacon event wakes it back up. This is one of the most common sources of confusion for integrators.
 
-- [ ] Write a guide covering the full background wake-up lifecycle on Android and iOS
-- [ ] Explain how to hydrate Redux or Zustand state when the app starts in background mode
-- [ ] Cover the `aggressiveBackground` path specifically and its edge cases
+### Android
+
+- [ ] Explain the foreground service lifecycle: when it starts, when it stops, and what happens when the user force-kills the app
+- [ ] Cover restrictive OEM behavior (Xiaomi, Huawei, Samsung) and when `aggressiveBackground` is needed
+- [ ] Explain how to detect that the JS bundle loaded fresh from a background wake-up (no React state, no Redux store)
+- [ ] Show how to read persisted state (AsyncStorage / MMKV) on startup to restore the last known beacon context
+
+### iOS
+
+- [ ] Explain how Core Location region monitoring wakes the app in the background
+- [ ] Clarify the difference between `didEnterRegion` / `didExitRegion` and `didDetermineState` at launch
+- [ ] Explain the `launchOptions` key that signals a background launch triggered by a region event
+- [ ] Describe the execution time budget iOS gives the app after a background wake-up
+
+### State hydration patterns
+
+- [ ] Show a Redux example: dispatch a hydration action inside the root component on mount so reducers can seed from persisted storage
+- [ ] Show a Zustand example: use `persist` middleware with AsyncStorage / MMKV so the store auto-rehydrates
+- [ ] Explain why relying on React component state alone is insufficient in background scenarios
+
+### `aggressiveBackground` deep dive
+
+- [ ] Document exactly which OEMs require it and why
+- [ ] Cover the trade-offs: higher battery usage vs. scan reliability
+- [ ] Provide a decision guide: when to enable it and when to leave it off
 
 ---
 
@@ -121,8 +143,6 @@ These are useful, but below reliability and Eddystone.
 
 - [ ] Region-scoped subscription helpers such as `Beacon.onBeaconsRanged('zone-a', callback)`
 - [ ] Moving average filter as an alternative to Kalman
-- [ ] `Beacon.getNearestBeacon(beacons)`
-- [ ] `useNearestBeacon(region)`
 - [ ] `useBeaconMap(beaconMap)`
 - [x] Expo config plugin for automatic permission injection
 - [x] Full TypeScript strict mode across the library
