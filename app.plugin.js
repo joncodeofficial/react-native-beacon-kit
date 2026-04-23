@@ -17,7 +17,9 @@ const ANDROID_PERMISSIONS = [
   'android.permission.BLUETOOTH_CONNECT',
   'android.permission.FOREGROUND_SERVICE',
   'android.permission.FOREGROUND_SERVICE_LOCATION',
+  'android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE',
   'android.permission.POST_NOTIFICATIONS',
+  'android.permission.WAKE_LOCK',
 ];
 
 const hasPermission = (permissions, permission) =>
