@@ -347,7 +347,9 @@
         double rawDistance = beacon.accuracy;
         NSString *key = [NSString stringWithFormat:@"%@:%ld:%ld",
                          uuidStr, (long)major, (long)minor];
-        double distance = _kalmanEnabled
+        // Skip the Kalman filter when distance is unknown (-1) to avoid
+        // corrupting the filter state with a nonsensical measurement.
+        double distance = (_kalmanEnabled && rawDistance >= 0)
             ? [self applyKalman:key measurement:rawDistance]
             : rawDistance;
 
