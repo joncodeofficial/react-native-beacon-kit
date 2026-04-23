@@ -128,7 +128,17 @@ class BeaconModule(reactContext: ReactApplicationContext) :
       true // Android < 12 does not require BLUETOOTH_SCAN
     }
 
-    promise.resolve(hasLocation && hasBluetooth)
+    // Android 10+ requires ACCESS_BACKGROUND_LOCATION for background BLE scanning.
+    // Without it the OS silently delivers no ranging events when the app is backgrounded.
+    val hasBackgroundLocation = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+      ContextCompat.checkSelfPermission(
+        context, Manifest.permission.ACCESS_BACKGROUND_LOCATION
+      ) == PackageManager.PERMISSION_GRANTED
+    } else {
+      true // Android < 10 does not require ACCESS_BACKGROUND_LOCATION
+    }
+
+    promise.resolve(hasLocation && hasBluetooth && hasBackgroundLocation)
   }
 
   // Sets scan intervals and optionally enables the foreground service
