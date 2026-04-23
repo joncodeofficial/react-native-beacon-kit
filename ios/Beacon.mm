@@ -414,6 +414,47 @@ rangingBeaconsDidFailForConstraint:(CLBeaconIdentityConstraint *)constraint
                               code:@"MONITORING_ERROR"];
 }
 
+// Fires on app launch when a background region event woke the app, and whenever
+// requestStateForRegion: is called. Gives the initial inside/outside state that
+// didEnterRegion/didExitRegion would otherwise miss at cold start.
+- (void)locationManager:(CLLocationManager *)manager
+      didDetermineState:(CLRegionState)state
+              forRegion:(CLRegion *)region {
+    if (![region isKindOfClass:[CLBeaconRegion class]]) return;
+    NSString *stateStr;
+    switch (state) {
+        case CLRegionStateInside:  stateStr = @"inside";  break;
+        case CLRegionStateOutside: stateStr = @"outside"; break;
+        default: return; // CLRegionStateUnknown — no actionable state to emit
+    }
+    [self sendRegionStateEvent:(CLBeaconRegion *)region state:stateStr];
+}
+
+// Fires when the user grants or revokes location permission while the app is running.
+// Propagates a PERMISSION_DENIED failure to all active regions so the JS layer can react.
+- (void)locationManagerDidChangeAuthorization:(CLLocationManager *)manager {
+    CLAuthorizationStatus status = manager.authorizationStatus;
+    if (status != kCLAuthorizationStatusDenied && status != kCLAuthorizationStatusRestricted) return;
+
+    NSError *error = [NSError errorWithDomain:@"BeaconKit"
+                                         code:1
+                                     userInfo:@{NSLocalizedDescriptionKey: @"Location permission denied or restricted"}];
+    for (NSString *identifier in _rangingConstraints) {
+        CLBeaconIdentityConstraint *constraint = _rangingConstraints[identifier];
+        [self sendFailureEventWithName:@"onRangingFailed"
+                                region:[self regionMapForConstraint:constraint identifier:identifier]
+                                 error:error
+                                  code:@"PERMISSION_DENIED"];
+    }
+    for (NSString *identifier in _monitoringRegions) {
+        CLBeaconRegion *region = _monitoringRegions[identifier];
+        [self sendFailureEventWithName:@"onMonitoringFailed"
+                                region:[self regionMapForBeaconRegion:region]
+                                 error:error
+                                  code:@"PERMISSION_DENIED"];
+    }
+}
+
 - (void)locationManager:(CLLocationManager *)manager didFailWithError:(NSError *)error {
     for (NSString *identifier in _rangingConstraints) {
         CLBeaconIdentityConstraint *constraint = _rangingConstraints[identifier];

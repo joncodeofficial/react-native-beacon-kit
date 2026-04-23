@@ -32,3 +32,5 @@ export {
   useMonitorThenRange,
   type UseMonitorThenRangeResult,
 } from './useMonitorThenRange';
+
+export type { BeaconHookRegionState } from './hookUtils';
