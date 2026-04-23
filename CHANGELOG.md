@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.7.3](https://github.com/joncodeofficial/react-native-beacon-kit/compare/v0.7.2...v0.7.3) (2026-04-23)
+
+### Bug Fixes
+
+* add additional Android permissions for foreground service and wake lock ([aa9ce99](https://github.com/joncodeofficial/react-native-beacon-kit/commit/aa9ce9965f0a945f4bd8c1f1cb18a0de144ce827))
+* add check for ACCESS_BACKGROUND_LOCATION permission for background BLE scanning ([8378f35](https://github.com/joncodeofficial/react-native-beacon-kit/commit/8378f35e0300c09a8249945e956a1e90d5fc1864))
+* **ios:** handle background wake-up state and runtime permission changes ([2ae4651](https://github.com/joncodeofficial/react-native-beacon-kit/commit/2ae46513c1e921727c37f3af82537a5c4e094d4f))
+* skip Kalman filter for unknown distance measurements to prevent state corruption ([92ef633](https://github.com/joncodeofficial/react-native-beacon-kit/commit/92ef6331ed0119c34aa9d001879f1184af379744))
+
 ## [0.7.2](https://github.com/joncodeofficial/react-native-beacon-kit/compare/v0.7.1...v0.7.2) (2026-04-17)
 
 ### Bug Fixes
