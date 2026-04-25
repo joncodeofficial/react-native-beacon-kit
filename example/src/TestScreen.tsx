@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import Beacon, {
   type BeaconRegion,
+  useBeaconEnvironment,
   useBeaconMonitoring,
   useBeaconRanging,
 } from 'react-native-beacon-kit';
@@ -19,16 +20,15 @@ const TEST_REGION: BeaconRegion = {
 };
 
 export default function TestScreen() {
-  const [hasPermissions, setHasPermissions] = useState<boolean | null>(null);
   const [rangedRegions, setRangedRegions] = useState<BeaconRegion[]>([]);
   const [monitoredRegions, setMonitoredRegions] = useState<BeaconRegion[]>([]);
   const ranging = useBeaconRanging({ region: TEST_REGION });
   const monitoring = useBeaconMonitoring({ region: TEST_REGION });
-
-  // Read permission status for display — configure() already ran in App.tsx
-  useEffect(() => {
-    Beacon.checkPermissions().then(setHasPermissions);
-  }, []);
+  const {
+    state: environmentState,
+    isLoading: environmentLoading,
+    refresh: refreshEnvironment,
+  } = useBeaconEnvironment();
 
   useEffect(() => {
     const ts = new Date().toISOString();
@@ -100,19 +100,85 @@ export default function TestScreen() {
     setMonitoredRegions(monitored);
   }, []);
 
+  const handleRefreshDiagnostics = useCallback(async () => {
+    await refreshEnvironment();
+    console.log('[beacon] environment refresh requested');
+  }, [refreshEnvironment]);
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.title}>Beacon Test</Text>
+      <Text style={styles.title}>Test</Text>
 
       <Text style={styles.status}>
         Permissions:{' '}
-        {hasPermissions === null
+        {environmentState == null
           ? '...'
-          : hasPermissions
+          : environmentState.permissionsGranted
             ? 'granted ✓'
             : 'denied ✗'}
       </Text>
       <Text style={styles.status}>Region state: {monitoring.regionState}</Text>
+
+      <Text style={styles.sectionTitle}>Diagnostics</Text>
+      <Text style={styles.hint}>
+        This screen uses hooks end-to-end. Toggle Bluetooth, location services,
+        or permissions and the diagnostics state should update automatically.
+      </Text>
+      <View style={styles.row}>
+        <Button
+          title="Refresh Diagnostics"
+          onPress={handleRefreshDiagnostics}
+        />
+      </View>
+      {environmentState ? (
+        <View style={styles.diagnosticsCard}>
+          <Text style={styles.diagnosticsTitle}>
+            Ready now:{' '}
+            <Text
+              style={[
+                styles.diagnosticsValue,
+                environmentState.canScanInForeground
+                  ? styles.goodText
+                  : styles.badText,
+              ]}
+            >
+              {environmentState.canScanInForeground ? 'yes' : 'no'}
+            </Text>
+          </Text>
+          <Text style={styles.diagnosticsLine}>
+            Background ready:{' '}
+            {environmentState.canScanInBackground ? 'yes' : 'no'}
+          </Text>
+          <Text style={styles.diagnosticsLine}>
+            Bluetooth enabled:{' '}
+            {environmentState.bluetoothEnabled ? 'yes' : 'no'}
+          </Text>
+          <Text style={styles.diagnosticsLine}>
+            Location services enabled:{' '}
+            {environmentState.locationServicesEnabled ? 'yes' : 'no'}
+          </Text>
+          <Text style={styles.diagnosticsLine}>
+            Location permission:{' '}
+            {environmentState.locationPermissionGranted ? 'granted' : 'missing'}
+          </Text>
+          <Text style={styles.diagnosticsLine}>
+            Bluetooth permission:{' '}
+            {environmentState.bluetoothPermissionGranted
+              ? 'granted'
+              : 'missing'}
+          </Text>
+          <Text style={styles.diagnosticsLine}>
+            Background permission:{' '}
+            {environmentState.backgroundPermissionGranted
+              ? 'granted'
+              : 'missing'}
+          </Text>
+        </View>
+      ) : environmentLoading ? (
+        <Text style={styles.status}>Loading diagnostics...</Text>
+      ) : (
+        <Text style={styles.status}>Diagnostics unavailable</Text>
+      )}
 
       {/* --- Ranging --- */}
       <Text style={styles.sectionTitle}>Ranging</Text>
@@ -215,6 +281,26 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   errorText: { fontSize: 12, color: '#c00' },
+  diagnosticsCard: {
+    backgroundColor: '#f8f8f8',
+    borderRadius: 8,
+    padding: 12,
+    marginTop: 4,
+  },
+  diagnosticsTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 8,
+    color: '#333',
+  },
+  diagnosticsValue: { fontWeight: '700' },
+  diagnosticsLine: {
+    fontSize: 13,
+    color: '#444',
+    marginBottom: 4,
+  },
+  goodText: { color: '#1a7f37' },
+  badText: { color: '#c00' },
   beacon: {
     padding: 12,
     marginBottom: 8,
